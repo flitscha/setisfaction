@@ -1,3 +1,7 @@
+import { Star } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+
 type TodaySet = { id: string; reps: number | null; timeSeconds: number | null; weightKg: number | null };
 
 function formatSetValue(set: TodaySet): string {
@@ -14,33 +18,40 @@ export function TodayExerciseCard({
   prSetIds,
   onAddSet,
   onEditSet,
+  expandedContent,
 }: {
   exerciseName: string;
   sets: TodaySet[];
   prSetIds: Set<string>;
   onAddSet: () => void;
   onEditSet: (setId: string) => void;
+  expandedContent?: React.ReactNode;
 }) {
   return (
-    <div className="border rounded px-4 py-3 flex flex-col gap-2">
+    <Card className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="font-medium">{exerciseName}</p>
-        <button onClick={onAddSet} className="border rounded px-3 py-1 text-sm whitespace-nowrap">
+        <Button variant="secondary" onClick={onAddSet} className="px-3 py-1">
           + Set
-        </button>
+        </Button>
       </div>
-      <div className="flex flex-wrap gap-2">
-        {sets.map((set) => (
-          <button
-            key={set.id}
-            onClick={() => onEditSet(set.id)}
-            className="border rounded px-2 py-1 text-sm hover:bg-gray-50"
-          >
-            {formatSetValue(set)}
-            {prSetIds.has(set.id) && " ⭐"}
-          </button>
-        ))}
-      </div>
-    </div>
+
+      {sets.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {sets.map((set) => (
+            <button
+              key={set.id}
+              onClick={() => onEditSet(set.id)}
+              className="flex items-center gap-1 rounded-lg border border-card-border px-2 py-1 text-sm hover:bg-card"
+            >
+              {formatSetValue(set)}
+              {prSetIds.has(set.id) && <Star size={12} className="fill-accent text-accent" />}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {expandedContent}
+    </Card>
   );
 }

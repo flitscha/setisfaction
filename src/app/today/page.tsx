@@ -1,19 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { getLocalDayRange } from "@/lib/date";
 import { ExercisePicker, type PickableExercise } from "@/components/sets/exercise-picker";
 import { SetForm, type SetFormValues } from "@/components/sets/set-form";
 import { TodayExerciseCard } from "@/components/sets/today-exercise-card";
+import { BottomSheet } from "@/components/ui/bottom-sheet";
 
 type EditingSet = {
   id: string;
   exerciseId: string;
-  exerciseName: string;
-  tracksReps: boolean;
-  tracksTime: boolean;
-  tracksWeight: boolean;
   reps: number | null;
   timeSeconds: number | null;
   weightKg: number | null;
@@ -90,6 +88,25 @@ export default function TodayPage() {
     return Array.from(map.values());
   }, [todaySets]);
 
+  // A freshly picked exercise with no sets logged yet today gets a temporary
+  // card at the top so the add-set form always appears inside a card.
+  const displayGroups = useMemo(() => {
+    if (activeExercise && !groups.some((g) => g.exerciseId === activeExercise.id)) {
+      return [
+        {
+          exerciseId: activeExercise.id,
+          exerciseName: activeExercise.name,
+          tracksReps: activeExercise.tracksReps,
+          tracksTime: activeExercise.tracksTime,
+          tracksWeight: activeExercise.tracksWeight,
+          sets: [] as NonNullable<typeof todaySets>,
+        },
+        ...groups,
+      ];
+    }
+    return groups;
+  }, [groups, activeExercise]);
+
   function handleCreateSet(values: SetFormValues) {
     if (!activeExercise) return;
     createSet.mutate({ exerciseId: activeExercise.id, ...values });
@@ -101,95 +118,103 @@ export default function TodayPage() {
   }
 
   return (
-    <main className="flex-1 p-6 max-w-md mx-auto w-full flex flex-col gap-4">
-      <h1 className="text-xl font-semibold">Today</h1>
+    <main className="flex-1 p-4 pb-24 max-w-md mx-auto w-full flex flex-col gap-4">
+      <h1 className="text-xl font-semibold px-1">Today</h1>
 
-      <div className="flex flex-col gap-2">
-        {groups.map((group) => (
-          <TodayExerciseCard
-            key={group.exerciseId}
-            exerciseName={group.exerciseName}
-            sets={group.sets}
-            prSetIds={prSetIds}
-            onAddSet={() => {
-              setEditingSet(null);
-              setActiveExercise({
-                id: group.exerciseId,
-                name: group.exerciseName,
-                tracksReps: group.tracksReps,
-                tracksTime: group.tracksTime,
-                tracksWeight: group.tracksWeight,
-              });
-            }}
-            onEditSet={(setId) => {
-              const set = group.sets.find((s) => s.id === setId);
-              if (!set) return;
-              setActiveExercise(null);
-              setEditingSet({
-                id: set.id,
-                exerciseId: group.exerciseId,
-                exerciseName: group.exerciseName,
-                tracksReps: group.tracksReps,
-                tracksTime: group.tracksTime,
-                tracksWeight: group.tracksWeight,
-                reps: set.reps,
-                timeSeconds: set.timeSeconds,
-                weightKg: set.weightKg,
-              });
-            }}
-          />
-        ))}
-        {groups.length === 0 && <p className="text-gray-500">No sets logged yet today.</p>}
+      {displayGroups.length === 0 && (
+        <p className="text-muted px-1">No sets logged yet today. Tap + to get started.</p>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {displayGroups.map((group) => {
+          const isAdding = activeExercise?.id === group.exerciseId;
+          const editingHere = editingSet !== null && group.sets.some((s) => s.id === editingSet.id);
+
+          let expandedContent: React.ReactNode = null;
+          if (isAdding) {
+            expandedContent = (
+              <SetForm
+                key={`add-${group.exerciseId}`}
+                exercise={group}
+                onSubmit={handleCreateSet}
+                isSubmitting={createSet.isPending}
+                onCancel={() => setActiveExercise(null)}
+              />
+            );
+          } else if (editingHere && editingSet) {
+            expandedContent = (
+              <SetForm
+                key={`edit-${editingSet.id}`}
+                exercise={group}
+                initialValues={{
+                  reps: editingSet.reps ?? undefined,
+                  timeSeconds: editingSet.timeSeconds ?? undefined,
+                  weightKg: editingSet.weightKg ?? undefined,
+                }}
+                onSubmit={handleUpdateSet}
+                isSubmitting={updateSet.isPending}
+                onCancel={() => setEditingSet(null)}
+                onDelete={() => deleteSet.mutate({ id: editingSet.id })}
+                isDeleting={deleteSet.isPending}
+              />
+            );
+          }
+
+          return (
+            <TodayExerciseCard
+              key={group.exerciseId}
+              exerciseName={group.exerciseName}
+              sets={group.sets}
+              prSetIds={prSetIds}
+              onAddSet={() => {
+                setEditingSet(null);
+                setActiveExercise({
+                  id: group.exerciseId,
+                  name: group.exerciseName,
+                  tracksReps: group.tracksReps,
+                  tracksTime: group.tracksTime,
+                  tracksWeight: group.tracksWeight,
+                });
+              }}
+              onEditSet={(setId) => {
+                const set = group.sets.find((s) => s.id === setId);
+                if (!set) return;
+                setActiveExercise(null);
+                setEditingSet({
+                  id: set.id,
+                  exerciseId: group.exerciseId,
+                  reps: set.reps,
+                  timeSeconds: set.timeSeconds,
+                  weightKg: set.weightKg,
+                });
+              }}
+              expandedContent={expandedContent}
+            />
+          );
+        })}
       </div>
 
-      {activeExercise && (
-        <div>
-          <p className="text-sm font-medium mb-2">{activeExercise.name}</p>
-          <SetForm
-            key={activeExercise.id}
-            exercise={activeExercise}
-            onSubmit={handleCreateSet}
-            isSubmitting={createSet.isPending}
-            onCancel={() => setActiveExercise(null)}
-          />
-        </div>
+      {!activeExercise && !editingSet && (
+        <button
+          onClick={() => setShowPicker(true)}
+          aria-label="Log exercise"
+          className="fixed bottom-20 right-4 rounded-full bg-accent text-accent-foreground w-14 h-14 flex items-center justify-center shadow-lg"
+        >
+          <Plus size={28} />
+        </button>
       )}
 
-      {editingSet && (
-        <div>
-          <p className="text-sm font-medium mb-2">Edit {editingSet.exerciseName}</p>
-          <SetForm
-            key={editingSet.id}
-            exercise={editingSet}
-            initialValues={{
-              reps: editingSet.reps ?? undefined,
-              timeSeconds: editingSet.timeSeconds ?? undefined,
-              weightKg: editingSet.weightKg ?? undefined,
-            }}
-            onSubmit={handleUpdateSet}
-            isSubmitting={updateSet.isPending}
-            onCancel={() => setEditingSet(null)}
-            onDelete={() => deleteSet.mutate({ id: editingSet.id })}
-            isDeleting={deleteSet.isPending}
-          />
-        </div>
-      )}
-
-      {!activeExercise &&
-        !editingSet &&
-        (showPicker ? (
+      {showPicker && (
+        <BottomSheet title="Log exercise" onClose={() => setShowPicker(false)}>
           <ExercisePicker
             onSelect={(exercise) => {
+              setEditingSet(null);
               setActiveExercise(exercise);
               setShowPicker(false);
             }}
-            onClose={() => setShowPicker(false)}
           />
-        ) : (
-          <button onClick={() => setShowPicker(true)} className="border rounded px-3 py-2 text-sm">
-            + Log exercise
-          </button>
-        ))}
+        </BottomSheet>
+      )}
     </main>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 import { Stopwatch } from "./stopwatch";
 
 export type SetFormValues = {
@@ -8,6 +9,8 @@ export type SetFormValues = {
   timeSeconds?: number;
   weightKg?: number;
 };
+
+const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
 export function SetForm({
   exercise,
@@ -42,16 +45,17 @@ export function SetForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 border rounded p-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-t border-card-border pt-3">
       {exercise.tracksReps && (
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium">Reps</span>
           <input
             type="number"
             inputMode="numeric"
+            autoFocus
             value={reps}
             onChange={(e) => setReps(e.target.value)}
-            className="border rounded px-3 py-2"
+            className={inputClass}
           />
         </label>
       )}
@@ -65,7 +69,7 @@ export function SetForm({
               inputMode="numeric"
               value={timeSeconds}
               onChange={(e) => setTimeSeconds(e.target.value)}
-              className="border rounded px-3 py-2 flex-1 min-w-0"
+              className={`${inputClass} flex-1 min-w-0`}
             />
             <Stopwatch onStop={(seconds) => setTimeSeconds(String(seconds))} />
           </div>
@@ -81,31 +85,22 @@ export function SetForm({
             step="0.5"
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
-            className="border rounded px-3 py-2"
+            className={inputClass}
           />
         </label>
       )}
 
       <div className="flex items-center gap-2">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="bg-black text-white rounded px-3 py-2 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Saving…" : "Log set"}
-        </button>
-        <button type="button" onClick={onCancel} className="text-sm underline">
+        </Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
         {onDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={isDeleting}
-            className="text-sm text-red-600 underline ml-auto disabled:opacity-50"
-          >
+          <Button type="button" variant="danger" onClick={onDelete} disabled={isDeleting} className="ml-auto">
             {isDeleting ? "Deleting…" : "Delete"}
-          </button>
+          </Button>
         )}
       </div>
     </form>

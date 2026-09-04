@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export type ExerciseFormValues = {
   name: string;
@@ -9,6 +10,8 @@ export type ExerciseFormValues = {
   tracksTime: boolean;
   tracksWeight: boolean;
 };
+
+const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
 export function ExerciseForm({
   initialValues,
@@ -49,7 +52,7 @@ export function ExerciseForm({
           value={values.name}
           onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))}
           required
-          className="border rounded px-3 py-2"
+          className={inputClass}
         />
       </label>
 
@@ -60,7 +63,7 @@ export function ExerciseForm({
           value={values.category}
           onChange={(e) => setValues((v) => ({ ...v, category: e.target.value }))}
           placeholder="e.g. Push-Up"
-          className="border rounded px-3 py-2"
+          className={inputClass}
         />
       </label>
 
@@ -94,13 +97,9 @@ export function ExerciseForm({
 
       {(validationError || errorMessage) && <p className="text-red-600 text-sm">{validationError ?? errorMessage}</p>}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="bg-black text-white rounded px-3 py-2 disabled:opacity-50"
-      >
+      <Button type="submit" disabled={isSubmitting}>
         {isSubmitting ? "Saving…" : submitLabel}
-      </button>
+      </Button>
     </form>
   );
 }

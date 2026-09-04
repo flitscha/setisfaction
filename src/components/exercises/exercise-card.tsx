@@ -21,13 +21,13 @@ export function ExerciseCard({
   return (
     <Link
       href={`/exercises/${exercise.id}`}
-      className="border rounded px-4 py-3 flex items-center justify-between gap-2 hover:bg-gray-50"
+      className="rounded-xl border border-card-border px-4 py-3 flex items-center justify-between gap-2 hover:bg-card"
     >
       <div>
         <p className="font-medium">{exercise.name}</p>
-        {exercise.category && <p className="text-sm text-gray-500">{exercise.category}</p>}
+        {exercise.category && <p className="text-sm text-muted">{exercise.category}</p>}
       </div>
-      <p className="text-sm text-gray-500 whitespace-nowrap">{trackedFields.join(" · ")}</p>
+      <p className="text-sm text-muted whitespace-nowrap">{trackedFields.join(" · ")}</p>
     </Link>
   );
 }

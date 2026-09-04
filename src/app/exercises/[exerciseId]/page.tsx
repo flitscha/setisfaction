@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { ExerciseForm } from "@/components/exercises/exercise-form";
+import { Button } from "@/components/ui/button";
 
 export default function EditExercisePage({ params }: { params: Promise<{ exerciseId: string }> }) {
   const { exerciseId } = use(params);
@@ -29,23 +30,23 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
 
   if (isLoading) {
     return (
-      <main className="flex-1 p-6 max-w-md mx-auto w-full">
-        <p>Loading…</p>
+      <main className="flex-1 p-4 max-w-md mx-auto w-full">
+        <p className="text-muted px-1">Loading…</p>
       </main>
     );
   }
 
   if (!exercise) {
     return (
-      <main className="flex-1 p-6 max-w-md mx-auto w-full">
-        <p>Exercise not found.</p>
+      <main className="flex-1 p-4 max-w-md mx-auto w-full">
+        <p className="text-muted px-1">Exercise not found.</p>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 p-6 max-w-md mx-auto w-full flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Edit exercise</h1>
+    <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
+      <h1 className="text-xl font-semibold px-1">Edit exercise</h1>
 
       <ExerciseForm
         initialValues={{
@@ -63,11 +64,11 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
         errorMessage={updateExercise.error?.message}
       />
 
-      <div className="border-t pt-4">
+      <div className="border-t border-card-border pt-4">
         {!showDeleteConfirm ? (
-          <button onClick={() => setShowDeleteConfirm(true)} className="text-sm text-red-600 underline">
+          <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
             Delete exercise
-          </button>
+          </Button>
         ) : (
           <div className="flex flex-col gap-2">
             <p className="text-sm">
@@ -75,16 +76,17 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
               {exercise.setsCount === 1 ? "" : "s"}.
             </p>
             <div className="flex gap-2">
-              <button
+              <Button
+                variant="primary"
+                className="bg-red-600 text-white hover:brightness-110"
                 onClick={() => deleteExercise.mutate({ id: exerciseId })}
                 disabled={deleteExercise.isPending}
-                className="bg-red-600 text-white rounded px-3 py-2 text-sm disabled:opacity-50"
               >
                 {deleteExercise.isPending ? "Deleting…" : "Confirm delete"}
-              </button>
-              <button onClick={() => setShowDeleteConfirm(false)} className="text-sm underline">
+              </Button>
+              <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>
                 Cancel
-              </button>
+              </Button>
             </div>
           </div>
         )}

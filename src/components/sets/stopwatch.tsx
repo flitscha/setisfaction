@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export function Stopwatch({ onStop }: { onStop: (seconds: number) => void }) {
   const [isRunning, setIsRunning] = useState(false);
@@ -30,10 +31,10 @@ export function Stopwatch({ onStop }: { onStop: (seconds: number) => void }) {
 
   return (
     <div className="flex items-center gap-2">
-      <button type="button" onClick={handleClick} className="border rounded px-3 py-1 text-sm whitespace-nowrap">
+      <Button type="button" variant="secondary" onClick={handleClick} className="whitespace-nowrap">
         {isRunning ? "Stop" : "Start"}
-      </button>
-      {isRunning && <span className="text-sm tabular-nums">{elapsed}s</span>}
+      </Button>
+      {isRunning && <span className="text-sm tabular-nums text-muted">{elapsed}s</span>}
     </div>
   );
 }

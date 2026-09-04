@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export function LogoutButton() {
+export function LogoutButton({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
 
   async function handleLogout() {
@@ -14,8 +14,8 @@ export function LogoutButton() {
   }
 
   return (
-    <button onClick={handleLogout} className="text-sm underline">
-      Log out
+    <button onClick={handleLogout} aria-label="Log out" className="text-muted hover:text-foreground">
+      {children ?? "Log out"}
     </button>
   );
 }

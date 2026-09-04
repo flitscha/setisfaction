@@ -1,0 +1,22 @@
+"use client";
+
+import { usePathname } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { LogoutButton } from "@/components/auth/logout-button";
+
+export function TopBar() {
+  const pathname = usePathname();
+
+  if (pathname === "/login") {
+    return null;
+  }
+
+  return (
+    <header className="border-b border-card-border px-4 py-3 flex items-center justify-between">
+      <p className="font-semibold">Setisfaction</p>
+      <LogoutButton>
+        <LogOut size={18} />
+      </LogoutButton>
+    </header>
+  );
+}

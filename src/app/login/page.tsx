@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { Dumbbell } from "lucide-react";
 import { createClient, usernameToEmail } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+
+const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,7 +40,12 @@ export default function LoginPage() {
   return (
     <main className="flex flex-1 items-center justify-center p-8">
       <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-4">
-        <h1 className="text-xl font-semibold">Setisfaction</h1>
+        <div className="flex flex-col items-center gap-2 mb-2">
+          <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
+            <Dumbbell size={24} />
+          </div>
+          <h1 className="text-xl font-semibold">Setisfaction</h1>
+        </div>
 
         <input
           type="text"
@@ -45,7 +54,7 @@ export default function LoginPage() {
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
           required
-          className="border rounded px-3 py-2"
+          className={inputClass}
         />
 
         <input
@@ -55,18 +64,14 @@ export default function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
           required
-          className="border rounded px-3 py-2"
+          className={inputClass}
         />
 
         {error && <p className="text-red-600 text-sm">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="bg-black text-white rounded px-3 py-2 disabled:opacity-50"
-        >
+        <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Logging in…" : "Log in"}
-        </button>
+        </Button>
       </form>
     </main>
   );

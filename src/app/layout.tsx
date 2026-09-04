@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TRPCProvider } from "@/lib/trpc/provider";
-import { Nav } from "@/components/layout/nav";
+import { TopBar } from "@/components/layout/top-bar";
+import { BottomNav } from "@/components/layout/bottom-nav";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,8 +28,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <TRPCProvider>
-          <Nav />
-          {children}
+          <TopBar />
+          <div className="flex-1 flex flex-col pb-16">{children}</div>
+          <BottomNav />
         </TRPCProvider>
       </body>
     </html>

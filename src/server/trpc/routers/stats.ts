@@ -20,7 +20,7 @@ export const statsRouter = router({
       .where(eq(sets.userId, ctx.userId));
 
     const setCount = count(sets.id);
-    const mostTrainedExercises = await db
+    const exerciseSetCounts = await db
       .select({
         exerciseId: exercises.id,
         name: exercises.name,
@@ -30,13 +30,12 @@ export const statsRouter = router({
       .innerJoin(sets, eq(sets.exerciseId, exercises.id))
       .where(eq(exercises.userId, ctx.userId))
       .groupBy(exercises.id)
-      .orderBy(desc(setCount))
-      .limit(5);
+      .orderBy(desc(setCount));
 
     return {
       totalSets: totals.totalSets,
       totalTrainingDays: Number(totals.totalTrainingDays),
-      mostTrainedExercises,
+      exerciseSetCounts,
     };
   }),
 });
