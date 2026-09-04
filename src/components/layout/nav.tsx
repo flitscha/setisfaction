@@ -20,6 +20,9 @@ export function Nav() {
         <Link href="/exercises" className="underline">
           Exercises
         </Link>
+        <Link href="/stats" className="underline">
+          Stats
+        </Link>
       </div>
       <LogoutButton />
     </nav>

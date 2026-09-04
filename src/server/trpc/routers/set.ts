@@ -113,6 +113,16 @@ export const setRouter = router({
     return deleted;
   }),
 
+  listByExercise: protectedProcedure
+    .input(z.object({ exerciseId: z.string().uuid() }))
+    .query(({ ctx, input }) =>
+      db
+        .select()
+        .from(sets)
+        .where(and(eq(sets.userId, ctx.userId), eq(sets.exerciseId, input.exerciseId)))
+        .orderBy(asc(sets.performedAt)),
+    ),
+
   listToday: protectedProcedure
     .input(z.object({ dayStart: z.date(), dayEnd: z.date() }))
     .query(({ ctx, input }) =>
