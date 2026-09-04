@@ -14,8 +14,8 @@ export function Nav() {
   return (
     <nav className="border-b px-6 py-3 flex items-center justify-between">
       <div className="flex gap-4 text-sm">
-        <Link href="/" className="underline">
-          Home
+        <Link href="/today" className="underline">
+          Today
         </Link>
         <Link href="/exercises" className="underline">
           Exercises
