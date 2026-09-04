@@ -11,18 +11,26 @@ export type SetFormValues = {
 
 export function SetForm({
   exercise,
+  initialValues,
   onSubmit,
   isSubmitting,
   onCancel,
+  onDelete,
+  isDeleting,
 }: {
   exercise: { tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean };
+  initialValues?: SetFormValues;
   onSubmit: (values: SetFormValues) => void;
   isSubmitting: boolean;
   onCancel: () => void;
+  onDelete?: () => void;
+  isDeleting?: boolean;
 }) {
-  const [reps, setReps] = useState("");
-  const [timeSeconds, setTimeSeconds] = useState("");
-  const [weightKg, setWeightKg] = useState("");
+  const [reps, setReps] = useState(initialValues?.reps !== undefined ? String(initialValues.reps) : "");
+  const [timeSeconds, setTimeSeconds] = useState(
+    initialValues?.timeSeconds !== undefined ? String(initialValues.timeSeconds) : "",
+  );
+  const [weightKg, setWeightKg] = useState(initialValues?.weightKg !== undefined ? String(initialValues.weightKg) : "");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -78,7 +86,7 @@ export function SetForm({
         </label>
       )}
 
-      <div className="flex gap-2">
+      <div className="flex items-center gap-2">
         <button
           type="submit"
           disabled={isSubmitting}
@@ -89,6 +97,16 @@ export function SetForm({
         <button type="button" onClick={onCancel} className="text-sm underline">
           Cancel
         </button>
+        {onDelete && (
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={isDeleting}
+            className="text-sm text-red-600 underline ml-auto disabled:opacity-50"
+          >
+            {isDeleting ? "Deleting…" : "Delete"}
+          </button>
+        )}
       </div>
     </form>
   );

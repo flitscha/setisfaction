@@ -1,13 +1,21 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, gte, lt } from "drizzle-orm";
+import { and, asc, eq, gte, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
+import { getPrFields, type PreviousBest } from "@/lib/pr";
 import { exercises, sets } from "@/server/db/schema";
 import { protectedProcedure, router } from "../trpc";
 
 const createSetInput = z.object({
   exerciseId: z.string().uuid(),
   performedAt: z.date().optional(),
+  reps: z.number().int().min(0).optional(),
+  timeSeconds: z.number().int().min(0).optional(),
+  weightKg: z.number().min(0).optional(),
+});
+
+const updateSetInput = z.object({
+  id: z.string().uuid(),
   reps: z.number().int().min(0).optional(),
   timeSeconds: z.number().int().min(0).optional(),
   weightKg: z.number().min(0).optional(),
@@ -26,9 +34,29 @@ async function assertOwnsExercise(exerciseId: string, userId: string) {
   return exercise;
 }
 
+async function getPreviousBest(exerciseId: string, excludeSetId?: string): Promise<PreviousBest> {
+  const conditions = [eq(sets.exerciseId, exerciseId)];
+  if (excludeSetId) {
+    conditions.push(ne(sets.id, excludeSetId));
+  }
+
+  const [result] = await db
+    .select({
+      maxReps: sql<number | null>`max(${sets.reps})`,
+      maxTimeSeconds: sql<number | null>`max(${sets.timeSeconds})`,
+      maxWeightKg: sql<number | null>`max(${sets.weightKg})`,
+    })
+    .from(sets)
+    .where(and(...conditions));
+
+  return result;
+}
+
 export const setRouter = router({
   create: protectedProcedure.input(createSetInput).mutation(async ({ ctx, input }) => {
     await assertOwnsExercise(input.exerciseId, ctx.userId);
+
+    const previousBest = await getPreviousBest(input.exerciseId);
 
     const [set] = await db
       .insert(sets)
@@ -42,7 +70,47 @@ export const setRouter = router({
       })
       .returning();
 
-    return set;
+    return { set, prFields: getPrFields(input, previousBest) };
+  }),
+
+  update: protectedProcedure.input(updateSetInput).mutation(async ({ ctx, input }) => {
+    const { id, ...values } = input;
+
+    const [existing] = await db
+      .select()
+      .from(sets)
+      .where(and(eq(sets.id, id), eq(sets.userId, ctx.userId)));
+
+    if (!existing) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+
+    const previousBest = await getPreviousBest(existing.exerciseId, id);
+
+    const [set] = await db
+      .update(sets)
+      .set({
+        reps: values.reps ?? null,
+        timeSeconds: values.timeSeconds ?? null,
+        weightKg: values.weightKg ?? null,
+      })
+      .where(eq(sets.id, id))
+      .returning();
+
+    return { set, prFields: getPrFields(values, previousBest) };
+  }),
+
+  delete: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+    const [deleted] = await db
+      .delete(sets)
+      .where(and(eq(sets.id, input.id), eq(sets.userId, ctx.userId)))
+      .returning({ id: sets.id });
+
+    if (!deleted) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+
+    return deleted;
   }),
 
   listToday: protectedProcedure
