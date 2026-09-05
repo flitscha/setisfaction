@@ -1,7 +1,9 @@
 // A search box should filter, not just reorder — but a typo shouldn't come
 // up empty either. Two tiers:
 //  1. The query matches a whole word in the name exactly ("squats" in
-//     "Cossack Squats") — every such match is shown, uncapped.
+//     "Cossack Squats") — every such match is shown, uncapped, shortest name
+//     first (an exact match on a shorter, more specific name — e.g. plain
+//     "Push-Ups" over "Diamond Push-Ups" — is the closer hit).
 //  2. Otherwise, fall back to substring/description/fuzzy scoring, keep only
 //     results above a relevance threshold, and cap it to the best few — so a
 //     near-miss (typo) still surfaces the closest exercise, but an unrelated
@@ -44,17 +46,26 @@ function isExactWordMatch(name: string, query: string): boolean {
   return new RegExp(`\\b${escapeRegExp(query)}\\b`, "i").test(name);
 }
 
-// 0..1 — how close the query is to the single best-matching word in text,
-// so a one-word typo ("csosack") still scores well against a multi-word
-// name ("Cossack Squats") instead of being penalized for the whole string.
-function bestTokenSimilarity(query: string, text: string): number {
-  let best = 0;
-  for (const token of tokenize(text)) {
-    const distance = levenshtein(query, token);
-    const similarity = 1 - distance / Math.max(query.length, token.length, 1);
-    if (similarity > best) best = similarity;
-  }
-  return best;
+// 0..1 — tokenizes BOTH sides, so a multi-word (possibly typo'd) query like
+// "front leaver" is judged word-by-word against "front lever" instead of
+// being compared as one long string against each single word of the name
+// (which made every word look like a bad match and sank the whole score).
+function multiWordSimilarity(query: string, text: string): number {
+  const queryTokens = tokenize(query);
+  const textTokens = tokenize(text);
+  if (queryTokens.length === 0 || textTokens.length === 0) return 0;
+
+  const bestPerQueryToken = queryTokens.map((qToken) => {
+    let best = 0;
+    for (const tToken of textTokens) {
+      const distance = levenshtein(qToken, tToken);
+      const similarity = 1 - distance / Math.max(qToken.length, tToken.length, 1);
+      if (similarity > best) best = similarity;
+    }
+    return best;
+  });
+
+  return bestPerQueryToken.reduce((sum, s) => sum + s, 0) / bestPerQueryToken.length;
 }
 
 function scoreItem(item: { name: string; description?: string | null }, query: string): number {
@@ -65,7 +76,7 @@ function scoreItem(item: { name: string; description?: string | null }, query: s
   if (name.includes(query)) return 3 + query.length / name.length;
   if (description.includes(query)) return 2 + query.length / Math.max(description.length, 1);
 
-  return Math.max(bestTokenSimilarity(query, name), bestTokenSimilarity(query, description) * 0.8);
+  return Math.max(multiWordSimilarity(query, name), multiWordSimilarity(query, description) * 0.8);
 }
 
 // Filters items down to what actually matches the query, best first. An
@@ -79,12 +90,14 @@ export function searchItems<T extends { name: string; description?: string | nul
   if (!q) return items;
 
   const exactMatches = items.filter((item) => isExactWordMatch(item.name, q));
-  if (exactMatches.length > 0) return exactMatches;
+  if (exactMatches.length > 0) {
+    return [...exactMatches].sort((a, b) => a.name.length - b.name.length || a.name.localeCompare(b.name));
+  }
 
   return items
     .map((item) => ({ item, score: scoreItem(item, q) }))
     .filter(({ score }) => score >= FALLBACK_SCORE_THRESHOLD)
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score || a.item.name.length - b.item.name.length)
     .slice(0, FALLBACK_LIMIT)
     .map(({ item }) => item);
 }
