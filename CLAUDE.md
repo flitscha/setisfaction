@@ -35,6 +35,8 @@ This touches most exercise-related queries, not just `exercise.ts` — anywhere 
 
 The migration promoting the initial production data (felix's already-seeded exercises, which matched the curated list exactly) to standard was a one-off manual `UPDATE exercises SET user_id = NULL ...` — not a script kept in the repo.
 
+Every user also starts with the same default grouping of the standard catalog (`applyStandardGrouping` in `src/server/db/standard-groups.ts`, called from `auth.register`) — their own `exercise_groups` rows, freely renamed/reassigned/deleted afterward like any group. The name→groups mapping there is a hand-kept duplicate of `scripts/seed.mjs`'s `EXERCISES` list; update both when a standard exercise is added.
+
 ## Auth
 
 Username + password, not email. The Supabase Auth API is email-based under the hood, so a username is deterministically mapped to a synthetic email (`{username}@setisfaction.local`) before calling `signInWithPassword`. Sessions persist (`persistSession: true`) so login isn't required every time. All routes are session-protected via Next.js proxy (middleware); `ctx.userId` in the tRPC context comes from the Supabase session, never an env var. `/login` and `/register` are the only public pages (`src/lib/auth-pages.ts` is the shared list the proxy and layout chrome both check).

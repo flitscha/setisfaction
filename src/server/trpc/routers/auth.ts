@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { usernameToEmail } from "@/lib/username";
 import { db } from "@/server/db";
 import { profiles } from "@/server/db/schema";
+import { applyStandardGrouping } from "@/server/db/standard-groups";
 import { publicProcedure, router } from "../trpc";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
@@ -44,6 +45,9 @@ export const authRouter = router({
       }
 
       await db.insert(profiles).values({ userId: data.user.id });
+      // Starting point only — the user can freely rename/reassign/delete
+      // these afterward, same as any of their own groups.
+      await applyStandardGrouping(data.user.id);
 
       return { success: true };
     }),
