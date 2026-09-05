@@ -2,13 +2,15 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { GroupMultiSelect } from "./group-multi-select";
 
 export type ExerciseFormValues = {
   name: string;
-  category: string;
+  description: string;
   tracksReps: boolean;
   tracksTime: boolean;
   tracksWeight: boolean;
+  groupIds: string[];
 };
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
@@ -27,7 +29,14 @@ export function ExerciseForm({
   errorMessage?: string | null;
 }) {
   const [values, setValues] = useState<ExerciseFormValues>(
-    initialValues ?? { name: "", category: "", tracksReps: true, tracksTime: false, tracksWeight: false },
+    initialValues ?? {
+      name: "",
+      description: "",
+      tracksReps: true,
+      tracksTime: false,
+      tracksWeight: false,
+      groupIds: [],
+    },
   );
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -57,12 +66,12 @@ export function ExerciseForm({
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Category (optional)</span>
-        <input
-          type="text"
-          value={values.category}
-          onChange={(e) => setValues((v) => ({ ...v, category: e.target.value }))}
-          placeholder="e.g. Push-Up"
+        <span className="text-sm font-medium">Description (optional)</span>
+        <textarea
+          value={values.description}
+          onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
+          placeholder="Shown next to the exercise as a reminder of how to perform it"
+          rows={3}
           className={inputClass}
         />
       </label>
@@ -94,6 +103,11 @@ export function ExerciseForm({
           Weight
         </label>
       </fieldset>
+
+      <GroupMultiSelect
+        selectedGroupIds={values.groupIds}
+        onChange={(groupIds) => setValues((v) => ({ ...v, groupIds }))}
+      />
 
       {(validationError || errorMessage) && <p className="text-red-600 text-sm">{validationError ?? errorMessage}</p>}
 

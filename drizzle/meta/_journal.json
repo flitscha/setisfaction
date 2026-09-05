@@ -8,6 +8,20 @@
       "when": 1788552765365,
       "tag": "0000_big_mandrill",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788589372871,
+      "tag": "0001_even_radioactive_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788589397916,
+      "tag": "0002_optimal_chamber",
+      "breakpoints": true
     }
   ]
 }

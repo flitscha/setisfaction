@@ -51,13 +51,14 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
       <ExerciseForm
         initialValues={{
           name: exercise.name,
-          category: exercise.category ?? "",
+          description: exercise.description ?? "",
           tracksReps: exercise.tracksReps,
           tracksTime: exercise.tracksTime,
           tracksWeight: exercise.tracksWeight,
+          groupIds: exercise.groupIds,
         }}
         onSubmit={(values) =>
-          updateExercise.mutate({ id: exerciseId, ...values, category: values.category || undefined })
+          updateExercise.mutate({ id: exerciseId, ...values, description: values.description || undefined })
         }
         isSubmitting={updateExercise.isPending}
         submitLabel="Save"

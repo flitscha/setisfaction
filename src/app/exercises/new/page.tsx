@@ -19,7 +19,7 @@ export default function NewExercisePage() {
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
       <h1 className="text-xl font-semibold px-1">New exercise</h1>
       <ExerciseForm
-        onSubmit={(values) => createExercise.mutate({ ...values, category: values.category || undefined })}
+        onSubmit={(values) => createExercise.mutate({ ...values, description: values.description || undefined })}
         isSubmitting={createExercise.isPending}
         submitLabel="Create"
         errorMessage={createExercise.error?.message}

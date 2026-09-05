@@ -1,4 +1,15 @@
-import { boolean, index, integer, numeric, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  index,
+  integer,
+  numeric,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
 export const exercises = pgTable(
@@ -7,7 +18,7 @@ export const exercises = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     userId: uuid("user_id").notNull(),
     name: text("name").notNull(),
-    category: text("category"),
+    description: text("description"),
     tracksReps: boolean("tracks_reps").notNull().default(true),
     tracksTime: boolean("tracks_time").notNull().default(false),
     tracksWeight: boolean("tracks_weight").notNull().default(false),
@@ -17,6 +28,35 @@ export const exercises = pgTable(
     // Case-insensitive uniqueness per user, so "Pull-Up" and "pull-up" can't both exist.
     uniqueIndex("exercises_user_id_lower_name_idx").on(table.userId, sql`lower(${table.name})`),
     index("exercises_user_id_name_idx").on(table.userId, table.name),
+  ],
+);
+
+// A user-defined grouping (e.g. "Push", "Legs") that exercises can optionally belong to,
+// many-to-many, purely for organizing/filtering and aggregate stats — not a real hierarchy.
+export const exerciseGroups = pgTable(
+  "exercise_groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("exercise_groups_user_id_lower_name_idx").on(table.userId, sql`lower(${table.name})`)],
+);
+
+export const exerciseGroupMembers = pgTable(
+  "exercise_group_members",
+  {
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercises.id, { onDelete: "cascade" }),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => exerciseGroups.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.exerciseId, table.groupId] }),
+    index("exercise_group_members_group_id_idx").on(table.groupId),
   ],
 );
 
