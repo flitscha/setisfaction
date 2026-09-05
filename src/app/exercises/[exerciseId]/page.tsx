@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { ExerciseForm } from "@/components/exercises/exercise-form";
 import { GroupMultiSelect } from "@/components/exercises/group-multi-select";
+import { TrackedFieldsFieldset, type TrackedFields } from "@/components/exercises/tracked-fields-fieldset";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
 
@@ -40,9 +41,10 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
   return <CustomExercisePage exercise={exercise} exerciseId={exerciseId} />;
 }
 
-// Read-only definition — name, description, and tracked fields are locked so
-// training stays comparable across users. Only this user's own grouping of
-// it can change.
+// Name and description are locked so training stays comparable across users.
+// This user's own grouping can always change; changing tracked fields forks
+// a personal copy instead of changing the shared definition (see
+// exercise.updateStandard).
 function StandardExercisePage({
   exercise,
 }: {
@@ -59,21 +61,28 @@ function StandardExercisePage({
   const router = useRouter();
   const utils = trpc.useUtils();
   const [groupIds, setGroupIds] = useState(exercise.groupIds);
+  const [trackedFields, setTrackedFields] = useState<TrackedFields>({
+    tracksReps: exercise.tracksReps,
+    tracksTime: exercise.tracksTime,
+    tracksWeight: exercise.tracksWeight,
+  });
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const updateGroups = trpc.exercise.updateGroups.useMutation({
+  const updateStandard = trpc.exercise.updateStandard.useMutation({
     onSuccess: async () => {
       await utils.exercise.list.invalidate();
       router.push("/exercises");
     },
   });
 
-  const trackedLabels = [
-    exercise.tracksReps && "Reps",
-    exercise.tracksTime && "Time",
-    exercise.tracksWeight && "Weight",
-  ]
-    .filter(Boolean)
-    .join(", ");
+  function handleSave() {
+    if (!trackedFields.tracksReps && !trackedFields.tracksTime && !trackedFields.tracksWeight) {
+      setValidationError("Track at least one of reps, time, or weight.");
+      return;
+    }
+    setValidationError(null);
+    updateStandard.mutate({ id: exercise.id, groupIds, ...trackedFields });
+  }
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
@@ -82,17 +91,17 @@ function StandardExercisePage({
       <h1 className="text-xl font-semibold px-1">{exercise.name}</h1>
 
       {exercise.description && <p className="text-sm text-muted px-1">{exercise.description}</p>}
-      <p className="text-sm text-muted px-1 -mt-4">Type: {trackedLabels}</p>
+
+      <TrackedFieldsFieldset value={trackedFields} onChange={setTrackedFields} />
 
       <GroupMultiSelect selectedGroupIds={groupIds} onChange={setGroupIds} />
 
-      {updateGroups.error && <p className="text-red-600 text-sm">{updateGroups.error.message}</p>}
+      {(validationError || updateStandard.error) && (
+        <p className="text-red-600 text-sm">{validationError ?? updateStandard.error?.message}</p>
+      )}
 
-      <Button
-        onClick={() => updateGroups.mutate({ id: exercise.id, groupIds })}
-        disabled={updateGroups.isPending}
-      >
-        {updateGroups.isPending ? "Saving…" : "Save"}
+      <Button onClick={handleSave} disabled={updateStandard.isPending}>
+        {updateStandard.isPending ? "Saving…" : "Save"}
       </Button>
     </main>
   );
@@ -110,12 +119,21 @@ function CustomExercisePage({
     tracksWeight: boolean;
     groupIds: string[];
     setsCount: number;
+    forkedFromId: string | null;
   };
   exerciseId: string;
 }) {
   const router = useRouter();
   const utils = trpc.useUtils();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
+
+  const restoreStandard = trpc.exercise.restoreStandard.useMutation({
+    onSuccess: async () => {
+      await utils.exercise.list.invalidate();
+      router.push("/exercises");
+    },
+  });
 
   const updateExercise = trpc.exercise.update.useMutation({
     onSuccess: async () => {
@@ -152,6 +170,32 @@ function CustomExercisePage({
         submitLabel="Save"
         errorMessage={updateExercise.error?.message}
       />
+
+      {exercise.forkedFromId && (
+        <div className="border-t border-card-border pt-4">
+          {!showRestoreConfirm ? (
+            <Button variant="secondary" onClick={() => setShowRestoreConfirm(true)}>
+              Switch back to standard exercise
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm">Switch back to the standard exercise? Your sets move with it.</p>
+              {restoreStandard.error && <p className="text-red-600 text-sm">{restoreStandard.error.message}</p>}
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => restoreStandard.mutate({ id: exerciseId })}
+                  disabled={restoreStandard.isPending}
+                >
+                  {restoreStandard.isPending ? "Switching…" : "Confirm"}
+                </Button>
+                <Button variant="ghost" onClick={() => setShowRestoreConfirm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="border-t border-card-border pt-4">
         {!showDeleteConfirm ? (

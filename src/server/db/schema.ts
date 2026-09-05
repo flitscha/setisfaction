@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -35,6 +36,11 @@ export const exercises = pgTable(
     tracksReps: boolean("tracks_reps").notNull().default(true),
     tracksTime: boolean("tracks_time").notNull().default(false),
     tracksWeight: boolean("tracks_weight").notNull().default(false),
+    // Set only on a personal exercise created by forking a standard one to
+    // change its tracked fields (see CLAUDE.md's "Shared exercise catalog").
+    // Points at the standard exercise it replaces for this user; that
+    // standard exercise is hidden from the user's lists while this exists.
+    forkedFromId: uuid("forked_from_id").references((): AnyPgColumn => exercises.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -46,6 +52,7 @@ export const exercises = pgTable(
       .on(sql`lower(${table.name})`)
       .where(sql`${table.userId} is null`),
     index("exercises_user_id_name_idx").on(table.userId, table.name),
+    index("exercises_forked_from_id_idx").on(table.forkedFromId),
   ],
 );
 

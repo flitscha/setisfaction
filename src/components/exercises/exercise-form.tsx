@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { GroupMultiSelect } from "./group-multi-select";
+import { TrackedFieldsFieldset } from "./tracked-fields-fieldset";
 
 export type ExerciseFormValues = {
   name: string;
@@ -77,33 +78,7 @@ export function ExerciseForm({
         />
       </label>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium mb-1">Tracked fields</legend>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={values.tracksReps}
-            onChange={(e) => setValues((v) => ({ ...v, tracksReps: e.target.checked }))}
-          />
-          Reps
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={values.tracksTime}
-            onChange={(e) => setValues((v) => ({ ...v, tracksTime: e.target.checked }))}
-          />
-          Time
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={values.tracksWeight}
-            onChange={(e) => setValues((v) => ({ ...v, tracksWeight: e.target.checked }))}
-          />
-          Weight
-        </label>
-      </fieldset>
+      <TrackedFieldsFieldset value={values} onChange={(fields) => setValues((v) => ({ ...v, ...fields }))} />
 
       <GroupMultiSelect
         selectedGroupIds={values.groupIds}

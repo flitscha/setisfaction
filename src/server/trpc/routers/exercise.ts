@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, isNull, notInArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { exerciseGroupMembers, exerciseGroups, exercises, sets } from "@/server/db/schema";
@@ -70,12 +70,29 @@ async function getGroupIdsByExercise(exerciseIds: string[], userId: string): Pro
   return map;
 }
 
+// Standard exercises this user has forked (to change tracked fields) —
+// hidden from their lists in favor of the personal fork that replaces them.
+async function getForkedAwayStandardIds(userId: string): Promise<string[]> {
+  const rows = await db
+    .select({ forkedFromId: exercises.forkedFromId })
+    .from(exercises)
+    .where(and(eq(exercises.userId, userId), isNotNull(exercises.forkedFromId)));
+  return rows.map((r) => r.forkedFromId).filter((id): id is string => id !== null);
+}
+
 export const exerciseRouter = router({
   list: readProcedure.query(async ({ ctx }) => {
+    const forkedAwayIds = await getForkedAwayStandardIds(ctx.viewUserId);
+
     const rows = await db
       .select()
       .from(exercises)
-      .where(or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)))
+      .where(
+        and(
+          or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)),
+          forkedAwayIds.length > 0 ? notInArray(exercises.id, forkedAwayIds) : undefined,
+        ),
+      )
       .orderBy(exercises.name);
 
     const groupIdsByExercise = await getGroupIdsByExercise(rows.map((r) => r.id), ctx.viewUserId);
@@ -83,10 +100,18 @@ export const exerciseRouter = router({
   }),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+    const forkedAwayIds = await getForkedAwayStandardIds(ctx.viewUserId);
+
     const [exercise] = await db
       .select()
       .from(exercises)
-      .where(and(eq(exercises.id, input.id), or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId))));
+      .where(
+        and(
+          eq(exercises.id, input.id),
+          or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)),
+          forkedAwayIds.length > 0 ? notInArray(exercises.id, forkedAwayIds) : undefined,
+        ),
+      );
 
     if (!exercise) {
       throw new TRPCError({ code: "NOT_FOUND" });
@@ -128,11 +153,10 @@ export const exerciseRouter = router({
     }
   }),
 
-  // Standard (userId-null) exercises are never editable this way — the name,
-  // description, and tracked fields have to stay identical for everyone so
-  // training on them stays comparable. Only a user's own exercises can be
-  // renamed/redescribed/redefined; see updateGroups for the one thing a
-  // standard exercise's own page can still change.
+  // Standard (userId-null) exercises are never editable this way — the name
+  // and description have to stay identical for everyone so training on them
+  // stays comparable. Only a user's own exercises can be renamed/redescribed;
+  // see updateStandard for what a standard exercise's own page can change.
   update: writeProcedure.input(updateExerciseInput).mutation(async ({ ctx, input }) => {
     const { id, groupIds, ...values } = input;
     await assertOwnsGroups(groupIds, ctx.userId);
@@ -164,41 +188,122 @@ export const exerciseRouter = router({
     }
   }),
 
-  // The one thing a standard exercise's page can change — which of the
-  // user's own groups it's filed into. Works for any visible exercise
-  // (standard or the user's own); only ever touches this user's own group
-  // memberships, never another user's organization of the same exercise.
-  updateGroups: writeProcedure
-    .input(z.object({ id: z.string().uuid(), groupIds: z.array(z.string().uuid()) }))
+  // What a standard exercise's own page can change: this user's grouping of
+  // it, always; and its tracked fields, by forking. The shared definition
+  // itself must stay identical for everyone, so a different reps/time/weight
+  // combo becomes this user's own exercise instead — same name, taking over
+  // their past sets on it — rather than changing the standard for everyone.
+  // See restoreStandard to undo a fork.
+  updateStandard: writeProcedure
+    .input(
+      z
+        .object({
+          id: z.string().uuid(),
+          groupIds: z.array(z.string().uuid()).default([]),
+          tracksReps: z.boolean(),
+          tracksTime: z.boolean(),
+          tracksWeight: z.boolean(),
+        })
+        .refine(hasTrackedField, trackedFieldIssue),
+    )
     .mutation(async ({ ctx, input }) => {
-      await assertOwnsGroups(input.groupIds, ctx.userId);
+      const { id, groupIds, tracksReps, tracksTime, tracksWeight } = input;
+      await assertOwnsGroups(groupIds, ctx.userId);
 
-      const [exercise] = await db
-        .select({ id: exercises.id })
+      const [standard] = await db
+        .select()
         .from(exercises)
-        .where(and(eq(exercises.id, input.id), or(eq(exercises.userId, ctx.userId), isNull(exercises.userId))));
-      if (!exercise) {
+        .where(and(eq(exercises.id, id), isNull(exercises.userId)));
+      if (!standard) {
         throw new TRPCError({ code: "NOT_FOUND" });
       }
 
-      const ownGroups = await db.select({ id: exerciseGroups.id }).from(exerciseGroups).where(eq(exerciseGroups.userId, ctx.userId));
-      const ownGroupIds = ownGroups.map((g) => g.id);
+      const typeUnchanged =
+        tracksReps === standard.tracksReps &&
+        tracksTime === standard.tracksTime &&
+        tracksWeight === standard.tracksWeight;
 
-      await db.transaction(async (tx) => {
-        if (ownGroupIds.length > 0) {
-          await tx
-            .delete(exerciseGroupMembers)
-            .where(and(eq(exerciseGroupMembers.exerciseId, input.id), inArray(exerciseGroupMembers.groupId, ownGroupIds)));
-        }
-        if (input.groupIds.length > 0) {
-          await tx
-            .insert(exerciseGroupMembers)
-            .values(input.groupIds.map((groupId) => ({ exerciseId: input.id, groupId })));
-        }
-      });
+      if (typeUnchanged) {
+        const ownGroups = await db
+          .select({ id: exerciseGroups.id })
+          .from(exerciseGroups)
+          .where(eq(exerciseGroups.userId, ctx.userId));
+        const ownGroupIds = ownGroups.map((g) => g.id);
 
-      return { groupIds: input.groupIds };
+        await db.transaction(async (tx) => {
+          if (ownGroupIds.length > 0) {
+            await tx
+              .delete(exerciseGroupMembers)
+              .where(and(eq(exerciseGroupMembers.exerciseId, id), inArray(exerciseGroupMembers.groupId, ownGroupIds)));
+          }
+          if (groupIds.length > 0) {
+            await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: id, groupId })));
+          }
+        });
+
+        return { forked: false as const, exerciseId: id };
+      }
+
+      try {
+        const fork = await db.transaction(async (tx) => {
+          const [fork] = await tx
+            .insert(exercises)
+            .values({
+              userId: ctx.userId,
+              name: standard.name,
+              description: standard.description,
+              tracksReps,
+              tracksTime,
+              tracksWeight,
+              forkedFromId: standard.id,
+            })
+            .returning();
+
+          await tx
+            .update(sets)
+            .set({ exerciseId: fork.id })
+            .where(and(eq(sets.exerciseId, standard.id), eq(sets.userId, ctx.userId)));
+
+          if (groupIds.length > 0) {
+            await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: fork.id, groupId })));
+          }
+
+          return fork;
+        });
+
+        return { forked: true as const, exerciseId: fork.id };
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          throw new TRPCError({ code: "CONFLICT", message: "You already have an exercise with this name." });
+        }
+        throw error;
+      }
     }),
+
+  // Undoes a fork created by updateStandard: moves this user's sets back
+  // onto the standard exercise and removes the personal fork, which brings
+  // the standard back into their lists (with its grouping as it was before).
+  restoreStandard: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+    const [fork] = await db
+      .select()
+      .from(exercises)
+      .where(and(eq(exercises.id, input.id), eq(exercises.userId, ctx.userId)));
+
+    if (!fork || !fork.forkedFromId) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+    const forkedFromId = fork.forkedFromId;
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(sets)
+        .set({ exerciseId: forkedFromId })
+        .where(and(eq(sets.exerciseId, fork.id), eq(sets.userId, ctx.userId)));
+      await tx.delete(exercises).where(eq(exercises.id, fork.id));
+    });
+
+    return { exerciseId: forkedFromId };
+  }),
 
   delete: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
     // eq(userId, ctx.userId) already excludes standard (userId-null) exercises —
