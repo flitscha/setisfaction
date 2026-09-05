@@ -4,3 +4,7 @@
 export function usernameToEmail(username: string): string {
   return `${username.trim().toLowerCase()}@setisfaction.local`;
 }
+
+export function emailToUsername(email: string): string {
+  return email.replace(/@setisfaction\.local$/, "");
+}

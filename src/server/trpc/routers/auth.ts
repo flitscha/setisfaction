@@ -1,15 +1,26 @@
 import { TRPCError } from "@trpc/server";
+import { sql } from "drizzle-orm";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { usernameToEmail } from "@/lib/username";
+import { emailToUsername, usernameToEmail } from "@/lib/username";
 import { db } from "@/server/db";
 import { profiles } from "@/server/db/schema";
 import { applyStandardGrouping } from "@/server/db/standard-groups";
-import { publicProcedure, router } from "../trpc";
+import { protectedProcedure, publicProcedure, router } from "../trpc";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 export const authRouter = router({
+  // Own username only — same raw-SQL read of auth.users as the admin router,
+  // just scoped to ctx.userId instead of requiring admin privileges.
+  me: protectedProcedure.query(async ({ ctx }) => {
+    const [row] = (await db.execute(
+      sql`select email from auth.users where id = ${ctx.userId}`,
+    )) as unknown as { email: string }[];
+
+    return { username: emailToUsername(row.email) };
+  }),
+
   register: publicProcedure
     .input(
       z.object({
