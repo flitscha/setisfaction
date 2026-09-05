@@ -47,7 +47,7 @@ export function ExerciseSummaryRow({
           {best !== null && field ? `Best: ${best} ${UNIT[field]}` : "No sets yet"}
         </p>
       </div>
-      {daily.length > 1 && <Sparkline values={daily.map((d) => d.best)} />}
+      {daily.length > 0 && <Sparkline values={daily.map((d) => d.best)} />}
     </Link>
   );
 }

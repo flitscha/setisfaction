@@ -13,6 +13,8 @@ export type PickableExercise = {
   tracksWeight: boolean;
 };
 
+const TOP_COUNT = 7;
+
 function ExerciseButton({ exercise, onSelect }: { exercise: PickableExercise; onSelect: (exercise: PickableExercise) => void }) {
   return (
     <button
@@ -27,16 +29,18 @@ function ExerciseButton({ exercise, onSelect }: { exercise: PickableExercise; on
 export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExercise) => void }) {
   const [query, setQuery] = useState("");
   const { data: all } = trpc.exercise.list.useQuery();
-  const { data: recent } = trpc.exercise.listRecent.useQuery();
   const { data: groups } = trpc.group.list.useQuery();
   const { data: aggregates } = trpc.stats.aggregates.useQuery();
 
-  // Most-trained exercises surface first, both in search results and within
-  // each group, so the exercise you actually do a lot is easy to find.
+  // Most-trained exercises surface first — both as a quick top list and within
+  // each group — since that's what you're likely to do again, not necessarily
+  // whatever you just logged (you don't want to train the same thing twice in
+  // a row).
   const setCountByExercise = new Map((aggregates?.exerciseSetCounts ?? []).map((e) => [e.exerciseId, e.setCount]));
   const byFrequency = [...(all ?? [])].sort(
     (a, b) => (setCountByExercise.get(b.id) ?? 0) - (setCountByExercise.get(a.id) ?? 0),
   );
+  const topExercises = byFrequency.filter((e) => setCountByExercise.has(e.id)).slice(0, TOP_COUNT);
 
   const trimmedQuery = query.trim().toLowerCase();
   const filtered = trimmedQuery
@@ -56,7 +60,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
         className="border border-card-border rounded-lg px-3 py-2.5 min-h-11 bg-transparent"
       />
 
-      <div className="flex flex-col gap-3 max-h-96 overflow-y-auto">
+      <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
         {filtered ? (
           <div className="flex flex-col gap-1">
             {filtered.length === 0 && <p className="text-sm text-muted">No exercises found.</p>}
@@ -66,10 +70,10 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
           </div>
         ) : (
           <>
-            {recent && recent.length > 0 && (
+            {topExercises.length > 0 && (
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium text-muted px-1">Recent</p>
-                {recent.map((exercise) => (
+                <p className="text-sm font-medium text-muted px-1">Most trained</p>
+                {topExercises.map((exercise) => (
                   <ExerciseButton key={exercise.id} exercise={exercise} onSelect={onSelect} />
                 ))}
               </div>
@@ -81,6 +85,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
                 <CollapsibleSection
                   key={section.groupId ?? "ungrouped"}
                   storageKey={`picker:${section.groupId ?? "ungrouped"}`}
+                  defaultOpen={false}
                   title={section.groupName}
                   count={section.items.length}
                 >

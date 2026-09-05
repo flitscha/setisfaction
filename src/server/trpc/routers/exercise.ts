@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, inArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { exerciseGroupMembers, exerciseGroups, exercises, sets } from "@/server/db/schema";
@@ -72,33 +72,6 @@ export const exerciseRouter = router({
     const groupIdsByExercise = await getGroupIdsByExercise(rows.map((r) => r.id));
     return rows.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
   }),
-
-  listRecent: protectedProcedure
-    .input(z.object({ limit: z.number().int().min(1).max(50).default(10) }).optional())
-    .query(async ({ ctx, input }) => {
-      const rows = await db
-        .select({
-          id: exercises.id,
-          name: exercises.name,
-          tracksReps: exercises.tracksReps,
-          tracksTime: exercises.tracksTime,
-          tracksWeight: exercises.tracksWeight,
-          createdAt: exercises.createdAt,
-          // The postgres driver returns a raw max() aggregate as a string, not a Date.
-          lastPerformedAt: sql<string | null>`max(${sets.performedAt})`,
-        })
-        .from(exercises)
-        .leftJoin(sets, eq(sets.exerciseId, exercises.id))
-        .where(eq(exercises.userId, ctx.userId))
-        .groupBy(exercises.id)
-        .orderBy(sql`max(${sets.performedAt}) desc nulls last`)
-        .limit(input?.limit ?? 10);
-
-      return rows.map((row) => ({
-        ...row,
-        lastPerformedAt: row.lastPerformedAt ? new Date(row.lastPerformedAt) : null,
-      }));
-    }),
 
   getById: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     const [exercise] = await db

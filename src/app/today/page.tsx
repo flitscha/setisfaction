@@ -7,7 +7,7 @@ import { getLocalDayRange } from "@/lib/date";
 import { ExercisePicker, type PickableExercise } from "@/components/sets/exercise-picker";
 import { SetForm, type SetFormValues } from "@/components/sets/set-form";
 import { TodayExerciseCard } from "@/components/sets/today-exercise-card";
-import { BottomSheet } from "@/components/ui/bottom-sheet";
+import { Modal } from "@/components/ui/modal";
 
 type EditingSet = {
   id: string;
@@ -35,7 +35,7 @@ export default function TodayPage() {
   const createSet = trpc.set.create.useMutation({
     onSuccess: async ({ set, prFields }) => {
       await utils.set.listByDay.invalidate();
-      await utils.exercise.listRecent.invalidate();
+      await utils.stats.aggregates.invalidate();
       markPr(set.id, prFields);
       setActiveExercise(null);
     },
@@ -205,7 +205,7 @@ export default function TodayPage() {
       )}
 
       {showPicker && (
-        <BottomSheet title="Log exercise" onClose={() => setShowPicker(false)}>
+        <Modal title="Log exercise" onClose={() => setShowPicker(false)}>
           <ExercisePicker
             onSelect={(exercise) => {
               setEditingSet(null);
@@ -213,7 +213,7 @@ export default function TodayPage() {
               setShowPicker(false);
             }}
           />
-        </BottomSheet>
+        </Modal>
       )}
     </main>
   );
