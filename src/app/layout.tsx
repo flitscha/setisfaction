@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { TRPCProvider } from "@/lib/trpc/provider";
@@ -18,6 +18,13 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Setisfaction",
   description: "Log calisthenics sets fast, track your progress.",
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafaf9" },
+    { media: "(prefers-color-scheme: dark)", color: "#121316" },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
