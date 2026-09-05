@@ -41,8 +41,8 @@ export const adminRouter = router({
 
   // Identity only — the target user's actual data (today/exercises/stats) is
   // fetched by the same routers/queries their own pages use, scoped via
-  // ctx.viewUserId (see readProcedure in trpc.ts) once ViewAsProvider is
-  // mounted for this userId.
+  // ctx.viewUserId (see readProcedure in trpc.ts) once ViewAsRegistration
+  // registers this userId.
   getUser: adminProcedure.input(z.object({ userId: z.string().uuid() })).query(async ({ input }) => {
     const [authUser] = (await db.execute(
       sql`select id, email, created_at from auth.users where id = ${input.userId}`,

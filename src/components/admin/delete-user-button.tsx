@@ -24,12 +24,8 @@ export function DeleteUserButton({ userId, username }: { userId: string; usernam
 
   return (
     <>
-      <button
-        onClick={() => setShowModal(true)}
-        aria-label="Delete this user"
-        className="p-1.5 -m-1.5 hover:text-red-600"
-      >
-        <Trash2 size={16} />
+      <button onClick={() => setShowModal(true)} aria-label="Delete this user" className="p-2 -m-2 hover:text-red-900">
+        <Trash2 size={18} />
       </button>
 
       {showModal && (
