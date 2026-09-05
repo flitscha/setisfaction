@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { exerciseGroups } from "@/server/db/schema";
-import { protectedProcedure, router } from "../trpc";
+import { readProcedure, router, writeProcedure } from "../trpc";
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -12,11 +12,11 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 export const groupRouter = router({
-  list: protectedProcedure.query(({ ctx }) =>
-    db.select().from(exerciseGroups).where(eq(exerciseGroups.userId, ctx.userId)).orderBy(exerciseGroups.name),
+  list: readProcedure.query(({ ctx }) =>
+    db.select().from(exerciseGroups).where(eq(exerciseGroups.userId, ctx.viewUserId)).orderBy(exerciseGroups.name),
   ),
 
-  create: protectedProcedure
+  create: writeProcedure
     .input(z.object({ name: z.string().trim().min(1, "Name is required").max(50) }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -33,7 +33,7 @@ export const groupRouter = router({
       }
     }),
 
-  rename: protectedProcedure
+  rename: writeProcedure
     .input(z.object({ id: z.string().uuid(), name: z.string().trim().min(1, "Name is required").max(50) }))
     .mutation(async ({ ctx, input }) => {
       try {
@@ -55,7 +55,7 @@ export const groupRouter = router({
       }
     }),
 
-  delete: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+  delete: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
     const [deleted] = await db
       .delete(exerciseGroups)
       .where(and(eq(exerciseGroups.id, input.id), eq(exerciseGroups.userId, ctx.userId)))

@@ -12,6 +12,14 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
+// One row per auth user, created on registration. Only holds app-level flags
+// that don't belong in Supabase Auth itself (currently just admin status).
+export const profiles = pgTable("profiles", {
+  userId: uuid("user_id").primaryKey(),
+  isAdmin: boolean("is_admin").notNull().default(false),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const exercises = pgTable(
   "exercises",
   {

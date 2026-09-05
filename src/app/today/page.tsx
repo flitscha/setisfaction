@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
+import { useViewAsUser } from "@/components/admin/view-as-context";
 import { getLocalDayRange } from "@/lib/date";
 import { ExercisePicker, type PickableExercise } from "@/components/sets/exercise-picker";
 import { SetForm, type SetFormValues } from "@/components/sets/set-form";
@@ -18,6 +19,7 @@ type EditingSet = {
 };
 
 export default function TodayPage() {
+  const isReadOnly = useViewAsUser() !== null;
   const { start, end } = useMemo(() => getLocalDayRange(), []);
   const utils = trpc.useUtils();
   const { data: todaySets } = trpc.set.listByDay.useQuery({ dayStart: start, dayEnd: end });
@@ -122,7 +124,9 @@ export default function TodayPage() {
       <h1 className="text-xl font-semibold px-1">Today</h1>
 
       {displayGroups.length === 0 && (
-        <p className="text-muted px-1">No sets logged yet today. Tap + to get started.</p>
+        <p className="text-muted px-1">
+          {isReadOnly ? "No sets logged today." : "No sets logged yet today. Tap + to get started."}
+        </p>
       )}
 
       <div className="flex flex-col gap-3">
@@ -166,35 +170,43 @@ export default function TodayPage() {
               exerciseName={group.exerciseName}
               sets={group.sets}
               prSetIds={prSetIds}
-              onAddSet={() => {
-                setEditingSet(null);
-                setActiveExercise({
-                  id: group.exerciseId,
-                  name: group.exerciseName,
-                  tracksReps: group.tracksReps,
-                  tracksTime: group.tracksTime,
-                  tracksWeight: group.tracksWeight,
-                });
-              }}
-              onEditSet={(setId) => {
-                const set = group.sets.find((s) => s.id === setId);
-                if (!set) return;
-                setActiveExercise(null);
-                setEditingSet({
-                  id: set.id,
-                  exerciseId: group.exerciseId,
-                  reps: set.reps,
-                  timeSeconds: set.timeSeconds,
-                  weightKg: set.weightKg,
-                });
-              }}
+              onAddSet={
+                isReadOnly
+                  ? undefined
+                  : () => {
+                      setEditingSet(null);
+                      setActiveExercise({
+                        id: group.exerciseId,
+                        name: group.exerciseName,
+                        tracksReps: group.tracksReps,
+                        tracksTime: group.tracksTime,
+                        tracksWeight: group.tracksWeight,
+                      });
+                    }
+              }
+              onEditSet={
+                isReadOnly
+                  ? undefined
+                  : (setId) => {
+                      const set = group.sets.find((s) => s.id === setId);
+                      if (!set) return;
+                      setActiveExercise(null);
+                      setEditingSet({
+                        id: set.id,
+                        exerciseId: group.exerciseId,
+                        reps: set.reps,
+                        timeSeconds: set.timeSeconds,
+                        weightKg: set.weightKg,
+                      });
+                    }
+              }
               expandedContent={expandedContent}
             />
           );
         })}
       </div>
 
-      {!activeExercise && !editingSet && (
+      {!isReadOnly && !activeExercise && !editingSet && (
         <button
           onClick={() => setShowPicker(true)}
           aria-label="Log exercise"

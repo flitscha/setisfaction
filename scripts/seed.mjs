@@ -133,7 +133,7 @@ const EXERCISES = [
     repProgressionPerWeek: 1,
   },
   {
-    name: "Cossack Squats (Assisted)",
+    name: "Cossack Squats",
     groups: ["Legs"],
     tracksReps: true,
     tracksTime: false,
@@ -188,6 +188,25 @@ const EXERCISES = [
     description: "Press up into a handstand from a tucked or straddled position on the ground, without kicking up.",
     repBase: 3,
     repProgressionPerWeek: 1,
+  },
+  {
+    name: "Pike Push-Ups",
+    groups: ["Push", "Handstand"],
+    tracksReps: true,
+    tracksTime: false,
+    description:
+      "Push-up with hips raised high (an inverted V shape), hands and feet on the ground — builds the shoulder-pressing strength used in a handstand push-up.",
+    repBase: 10,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "One Arm Handstand",
+    groups: ["Handstand"],
+    tracksReps: false,
+    tracksTime: true,
+    description: "Freestanding handstand balanced on a single arm — a very advanced handstand progression.",
+    timeBase: 2,
+    timeProgressionPerWeek: 1,
   },
   {
     name: "Front Lever (Tuck)",
@@ -305,6 +324,26 @@ const EXERCISES = [
     description: "Support hold with legs extended straight out in front, hips flexed to roughly 90 degrees.",
     timeBase: 12,
     timeProgressionPerWeek: 2,
+  },
+  {
+    name: "L-Sit (Straddle)",
+    groups: ["L-Sit"],
+    tracksReps: false,
+    tracksTime: true,
+    description:
+      "L-sit with the legs spread wide to the sides instead of held together — reduces the hip-flexor demand compared to a regular L-sit.",
+    timeBase: 15,
+    timeProgressionPerWeek: 2,
+  },
+  {
+    name: "L-Sit (Compressed)",
+    groups: ["L-Sit"],
+    tracksReps: false,
+    tracksTime: true,
+    description:
+      "L-sit with the torso leaned forward over the hands instead of upright — shifts more load onto the shoulders.",
+    timeBase: 8,
+    timeProgressionPerWeek: 1,
   },
   {
     name: "Seated Alternating Leg Raises (L-Sit Prep)",

@@ -2,7 +2,11 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usernameToEmail } from "@/lib/username";
+import { db } from "@/server/db";
+import { profiles } from "@/server/db/schema";
 import { publicProcedure, router } from "../trpc";
+
+const USERNAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 export const authRouter = router({
   register: publicProcedure
@@ -13,9 +17,20 @@ export const authRouter = router({
       }),
     )
     .mutation(async ({ input }) => {
+      // Checked explicitly (rather than via the Zod schema) so the message
+      // shown is this one, not Supabase's "invalid email" error from the
+      // synthetic email built out of the username below — confusing since
+      // the user never sees or enters an email themselves.
+      if (!USERNAME_PATTERN.test(input.username)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Username can only contain letters, numbers, underscores, and hyphens — no spaces.",
+        });
+      }
+
       const admin = createAdminClient();
 
-      const { error } = await admin.auth.admin.createUser({
+      const { data, error } = await admin.auth.admin.createUser({
         email: usernameToEmail(input.username),
         password: input.password,
         email_confirm: true,
@@ -27,6 +42,8 @@ export const authRouter = router({
         }
         throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
       }
+
+      await db.insert(profiles).values({ userId: data.user.id });
 
       return { success: true };
     }),

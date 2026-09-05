@@ -4,6 +4,7 @@ import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
+import { useAppPath } from "@/components/admin/view-as-context";
 import { toLocalDateKey, getLocalDayRange } from "@/lib/date";
 import { heatColorClass, heatTextColorClass } from "@/lib/stats";
 import { BackLink } from "@/components/ui/back-link";
@@ -25,6 +26,7 @@ export default function HistoryPage() {
 function HistoryPageContent() {
   const searchParams = useSearchParams();
   const groupId = searchParams.get("group");
+  const appPath = useAppPath();
 
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -89,7 +91,7 @@ function HistoryPageContent() {
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
-      <BackLink href={groupId ? `/stats/groups/${groupId}` : "/stats"} label={groupName ?? "Stats"} />
+      <BackLink href={appPath(groupId ? `/stats/groups/${groupId}` : "/stats")} label={groupName ?? "Stats"} />
       <h1 className="text-xl font-semibold px-1">{groupName ? `${groupName} history` : "History"}</h1>
 
       <div className="flex items-center justify-between px-1">

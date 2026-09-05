@@ -3,7 +3,7 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { exerciseGroupMembers, exerciseGroups, exercises, sets } from "@/server/db/schema";
-import { protectedProcedure, router } from "../trpc";
+import { readProcedure, router, writeProcedure } from "../trpc";
 
 const exerciseFields = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
@@ -67,17 +67,17 @@ async function getGroupIdsByExercise(exerciseIds: string[]): Promise<Map<string,
 }
 
 export const exerciseRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => {
-    const rows = await db.select().from(exercises).where(eq(exercises.userId, ctx.userId)).orderBy(exercises.name);
+  list: readProcedure.query(async ({ ctx }) => {
+    const rows = await db.select().from(exercises).where(eq(exercises.userId, ctx.viewUserId)).orderBy(exercises.name);
     const groupIdsByExercise = await getGroupIdsByExercise(rows.map((r) => r.id));
     return rows.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
   }),
 
-  getById: protectedProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
+  getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     const [exercise] = await db
       .select()
       .from(exercises)
-      .where(and(eq(exercises.id, input.id), eq(exercises.userId, ctx.userId)));
+      .where(and(eq(exercises.id, input.id), eq(exercises.userId, ctx.viewUserId)));
 
     if (!exercise) {
       throw new TRPCError({ code: "NOT_FOUND" });
@@ -89,7 +89,7 @@ export const exerciseRouter = router({
     return { ...exercise, setsCount, groupIds: groupIdsByExercise.get(exercise.id) ?? [] };
   }),
 
-  create: protectedProcedure.input(createExerciseInput).mutation(async ({ ctx, input }) => {
+  create: writeProcedure.input(createExerciseInput).mutation(async ({ ctx, input }) => {
     const { groupIds, ...values } = input;
     await assertOwnsGroups(groupIds, ctx.userId);
 
@@ -114,7 +114,7 @@ export const exerciseRouter = router({
     }
   }),
 
-  update: protectedProcedure.input(updateExerciseInput).mutation(async ({ ctx, input }) => {
+  update: writeProcedure.input(updateExerciseInput).mutation(async ({ ctx, input }) => {
     const { id, groupIds, ...values } = input;
     await assertOwnsGroups(groupIds, ctx.userId);
 
@@ -145,7 +145,7 @@ export const exerciseRouter = router({
     }
   }),
 
-  delete: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+  delete: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
     const [deleted] = await db
       .delete(exercises)
       .where(and(eq(exercises.id, input.id), eq(exercises.userId, ctx.userId)))

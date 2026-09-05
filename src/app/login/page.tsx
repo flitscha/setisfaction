@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Dumbbell } from "lucide-react";
 import { createClient, usernameToEmail } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
+import { PullUpIcon } from "@/components/icons/pull-up-icon";
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
@@ -43,7 +43,7 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-4">
         <div className="flex flex-col items-center gap-2 mb-2">
           <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
-            <Dumbbell size={24} />
+            <PullUpIcon size={24} />
           </div>
           <h1 className="text-xl font-semibold">Setisfaction</h1>
         </div>

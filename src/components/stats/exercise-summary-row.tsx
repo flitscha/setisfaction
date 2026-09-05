@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
+import { useAppPath } from "@/components/admin/view-as-context";
 import { aggregateByDay } from "@/lib/stats";
 import { Sparkline } from "./sparkline";
 
@@ -21,6 +22,7 @@ export function ExerciseSummaryRow({
 }: {
   exercise: { id: string; name: string; tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean };
 }) {
+  const appPath = useAppPath();
   const { data: history } = trpc.set.listByExercise.useQuery({ exerciseId: exercise.id });
   const field = primaryField(exercise);
 
@@ -38,7 +40,7 @@ export function ExerciseSummaryRow({
 
   return (
     <Link
-      href={`/stats/${exercise.id}`}
+      href={appPath(`/stats/${exercise.id}`)}
       className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:brightness-95 dark:hover:brightness-125"
     >
       <div>

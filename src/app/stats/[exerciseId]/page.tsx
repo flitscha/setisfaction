@@ -2,6 +2,7 @@
 
 import { use, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
+import { useAppPath } from "@/components/admin/view-as-context";
 import { aggregateByDay } from "@/lib/stats";
 import { TrendChart } from "@/components/stats/trend-chart";
 import { BackLink } from "@/components/ui/back-link";
@@ -21,6 +22,7 @@ function formatSet(set: { reps: number | null; timeSeconds: number | null; weigh
 
 export default function ExerciseStatsPage({ params }: { params: Promise<{ exerciseId: string }> }) {
   const { exerciseId } = use(params);
+  const appPath = useAppPath();
   const { data: exercise } = trpc.exercise.getById.useQuery({ id: exerciseId });
   const { data: history } = trpc.set.listByExercise.useQuery({ exerciseId });
   const [field, setField] = useState<TrackedField | null>(null);
@@ -46,7 +48,7 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
-      <BackLink href="/stats" label="Stats" />
+      <BackLink href={appPath("/stats")} label="Stats" />
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold px-1">{exercise?.name ?? "…"}</h1>
         {exercise?.description && <p className="text-sm text-muted px-1">{exercise.description}</p>}
