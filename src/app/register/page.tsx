@@ -56,18 +56,15 @@ export default function RegisterPage() {
           <h1 className="text-xl font-semibold">Create account</h1>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <input
-            type="text"
-            placeholder="Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            required
-            className={inputClass}
-          />
-          <p className="text-xs text-muted px-1">Letters, numbers, underscores, and hyphens only — no spaces.</p>
-        </div>
+        <input
+          type="text"
+          placeholder="Username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          autoComplete="username"
+          required
+          className={inputClass}
+        />
 
         <input
           type="password"
