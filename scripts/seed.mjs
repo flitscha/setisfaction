@@ -133,6 +133,36 @@ const EXERCISES = [
     repProgressionPerWeek: 1,
   },
   {
+    name: "Cossack Squats (Assisted)",
+    groups: ["Legs"],
+    tracksReps: true,
+    tracksTime: false,
+    description:
+      "Wide stance; shift your weight down onto one bent leg while the other stays straight out to the side, then pull yourself back up using support (rings/bar) rather than pressing — targets the inner thighs.",
+    repBase: 8,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Prone Leg Curls (Single-Leg)",
+    groups: ["Legs"],
+    tracksReps: true,
+    tracksTime: false,
+    description:
+      "Lying face down, curl one heel up toward your glutes, then lower with control — targets the hamstrings. Train each side separately.",
+    repBase: 10,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Standing Leg Curls",
+    groups: ["Legs"],
+    tracksReps: true,
+    tracksTime: false,
+    description:
+      "Standing on one leg, curl the other heel back and up toward your glutes, then lower with control — targets the hamstrings. Train each side separately.",
+    repBase: 10,
+    repProgressionPerWeek: 1,
+  },
+  {
     name: "Handstand",
     groups: ["Handstand"],
     tracksReps: false,
@@ -205,6 +235,33 @@ const EXERCISES = [
     repProgressionPerWeek: 1,
   },
   {
+    name: "Back Lever (Tuck)",
+    groups: ["Back Lever"],
+    tracksReps: false,
+    tracksTime: true,
+    description: "Hanging back lever with knees tucked to the chest — the easiest back lever progression.",
+    timeBase: 8,
+    timeProgressionPerWeek: 2,
+  },
+  {
+    name: "Back Lever (Advanced Tuck)",
+    groups: ["Back Lever"],
+    tracksReps: false,
+    tracksTime: true,
+    description: "Back lever with the hips extended further than the tuck, knees still bent, body more horizontal.",
+    timeBase: 5,
+    timeProgressionPerWeek: 1,
+  },
+  {
+    name: "Muscle Up",
+    groups: ["Pull", "Push"],
+    tracksReps: true,
+    tracksTime: false,
+    description: "Pull-up transitioning over the bar into a dip lockout — combines a pull-up and a dip in one continuous movement.",
+    repBase: 3,
+    repProgressionPerWeek: 1,
+  },
+  {
     name: "Planche (Tuck)",
     groups: ["Planche"],
     tracksReps: false,
@@ -261,7 +318,7 @@ const EXERCISES = [
   },
 ];
 
-const GROUPS = ["Push", "Pull", "Legs", "Handstand", "Front Lever", "L-Sit", "Planche"];
+const GROUPS = ["Push", "Pull", "Legs", "Handstand", "Front Lever", "Back Lever", "L-Sit", "Planche"];
 
 function randomInt(min, max) {
   return Math.floor(min + Math.random() * (max - min + 1));

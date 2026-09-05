@@ -3,7 +3,8 @@
 :root {
   --background: #fafaf9;
   --foreground: #18181b;
-  --card: #00000007;
+  /* Solid (not translucent) so the page's background pattern never shows through content boxes. */
+  --card: #ffffff;
   --card-border: #00000016;
   --muted: #6b7280;
   --accent: #16a34a;
@@ -27,8 +28,8 @@
   :root {
     --background: #121316;
     --foreground: #ededed;
-    --card: #ffffff10;
-    --card-border: #ffffff24;
+    --card: #1c1d21;
+    --card-border: #ffffff20;
     --muted: #9ca3af;
     --accent: #22c55e;
     --accent-foreground: #052e16;

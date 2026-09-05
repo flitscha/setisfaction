@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { GroupMultiSelect } from "./group-multi-select";
 
 export type ExerciseFormValues = {
@@ -67,11 +68,11 @@ export function ExerciseForm({
 
       <label className="flex flex-col gap-1">
         <span className="text-sm font-medium">Description (optional)</span>
-        <textarea
+        <Textarea
           value={values.description}
           onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
           placeholder="Shown next to the exercise as a reminder of how to perform it"
-          rows={3}
+          rows={2}
           className={inputClass}
         />
       </label>
