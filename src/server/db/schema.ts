@@ -25,13 +25,11 @@ export const exercises = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     // Null = a standard/shared exercise visible to every user, not owned by
-    // anyone. Set = a personal exercise, either user-created from scratch or
-    // forked from a standard one (see forkedFromId).
+    // anyone, and read-only (see CLAUDE.md's "Shared exercise catalog") —
+    // only its own name/description/tracked fields are locked; group
+    // membership is still per-user. Set = a personal exercise, fully owned
+    // and editable by that user.
     userId: uuid("user_id"),
-    // Set only when this personal exercise was created by editing a standard
-    // (userId-null) exercise — lets the exercise list hide the original
-    // standard row once a user has their own edited copy of it.
-    forkedFromId: uuid("forked_from_id"),
     name: text("name").notNull(),
     description: text("description"),
     tracksReps: boolean("tracks_reps").notNull().default(true),

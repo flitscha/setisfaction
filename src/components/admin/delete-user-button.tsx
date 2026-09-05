@@ -32,8 +32,7 @@ export function DeleteUserButton({ userId, username }: { userId: string; usernam
         <Modal title="Delete user" onClose={() => setShowModal(false)}>
           <div className="flex flex-col gap-3 text-foreground">
             <p className="text-sm">
-              This permanently deletes <strong>{username}</strong>&apos;s account, all their exercises, groups, and
-              sets. This cannot be undone.
+              Permanently delete <strong>{username}</strong>&apos;s account and all their data? Can&apos;t be undone.
             </p>
             <p className="text-sm text-muted">
               Type <strong>{username}</strong> to confirm.

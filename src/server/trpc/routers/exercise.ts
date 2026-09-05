@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { exerciseGroupMembers, exerciseGroups, exercises, sets } from "@/server/db/schema";
@@ -78,48 +78,8 @@ export const exerciseRouter = router({
       .where(or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)))
       .orderBy(exercises.name);
 
-    // Hide a standard exercise only once the user has an unrenamed fork of
-    // it — same name would otherwise show up twice, looking like a
-    // duplicate. A renamed fork reads as its own distinct exercise, so both
-    // stay visible (and there's nothing to "restore" — see listHiddenStandard).
-    const rowById = new Map(rows.map((r) => [r.id, r]));
-    const sameNameForkedFromIds = new Set(
-      rows
-        .filter((r) => r.userId === ctx.viewUserId && r.forkedFromId)
-        .filter((r) => rowById.get(r.forkedFromId!)?.name.toLowerCase() === r.name.toLowerCase())
-        .map((r) => r.forkedFromId),
-    );
-    const visible = rows.filter((r) => !(r.userId === null && sameNameForkedFromIds.has(r.id)));
-
-    const groupIdsByExercise = await getGroupIdsByExercise(visible.map((r) => r.id), ctx.viewUserId);
-    return visible.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
-  }),
-
-  // Standard exercises the viewer has hidden by forking without renaming —
-  // each can be brought back via resetToDefault (see the Exercises page's
-  // "Hidden standard exercises" section).
-  listHiddenStandard: readProcedure.query(async ({ ctx }) => {
-    const ownForks = await db
-      .select()
-      .from(exercises)
-      .where(and(eq(exercises.userId, ctx.viewUserId), isNotNull(exercises.forkedFromId)));
-
-    if (ownForks.length === 0) return [];
-
-    const originals = await db
-      .select()
-      .from(exercises)
-      .where(
-        inArray(
-          exercises.id,
-          ownForks.map((f) => f.forkedFromId!),
-        ),
-      );
-    const originalById = new Map(originals.map((o) => [o.id, o]));
-
-    return ownForks
-      .filter((fork) => originalById.get(fork.forkedFromId!)?.name.toLowerCase() === fork.name.toLowerCase())
-      .map((fork) => ({ forkId: fork.id, name: fork.name }));
+    const groupIdsByExercise = await getGroupIdsByExercise(rows.map((r) => r.id), ctx.viewUserId);
+    return rows.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
   }),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
@@ -140,13 +100,7 @@ export const exerciseRouter = router({
       .where(and(eq(sets.exerciseId, input.id), eq(sets.userId, ctx.viewUserId)));
     const groupIdsByExercise = await getGroupIdsByExercise([exercise.id], ctx.viewUserId);
 
-    let forkedFrom: { id: string; name: string } | null = null;
-    if (exercise.forkedFromId) {
-      const [original] = await db.select().from(exercises).where(eq(exercises.id, exercise.forkedFromId));
-      if (original) forkedFrom = { id: original.id, name: original.name };
-    }
-
-    return { ...exercise, setsCount, groupIds: groupIdsByExercise.get(exercise.id) ?? [], forkedFrom };
+    return { ...exercise, setsCount, groupIds: groupIdsByExercise.get(exercise.id) ?? [] };
   }),
 
   create: writeProcedure.input(createExerciseInput).mutation(async ({ ctx, input }) => {
@@ -174,40 +128,30 @@ export const exerciseRouter = router({
     }
   }),
 
+  // Standard (userId-null) exercises are never editable this way — the name,
+  // description, and tracked fields have to stay identical for everyone so
+  // training on them stays comparable. Only a user's own exercises can be
+  // renamed/redescribed/redefined; see updateGroups for the one thing a
+  // standard exercise's own page can still change.
   update: writeProcedure.input(updateExerciseInput).mutation(async ({ ctx, input }) => {
     const { id, groupIds, ...values } = input;
     await assertOwnsGroups(groupIds, ctx.userId);
 
-    const [existing] = await db.select().from(exercises).where(eq(exercises.id, id));
-    if (!existing || (existing.userId !== null && existing.userId !== ctx.userId)) {
-      throw new TRPCError({ code: "NOT_FOUND" });
-    }
-
     try {
       return await db.transaction(async (tx) => {
-        let exercise: typeof exercises.$inferSelect;
+        const [exercise] = await tx
+          .update(exercises)
+          .set(values)
+          .where(and(eq(exercises.id, id), eq(exercises.userId, ctx.userId)))
+          .returning();
 
-        if (existing.userId === null) {
-          // Standard (shared) exercise: don't edit the shared row itself —
-          // fork a personal copy, and move only this user's own past sets
-          // onto it so their history doesn't split across two exercise ids.
-          [exercise] = await tx
-            .insert(exercises)
-            .values({ ...values, userId: ctx.userId, forkedFromId: id })
-            .returning();
-
-          await tx
-            .update(sets)
-            .set({ exerciseId: exercise.id })
-            .where(and(eq(sets.exerciseId, id), eq(sets.userId, ctx.userId)));
-        } else {
-          [exercise] = await tx.update(exercises).set(values).where(eq(exercises.id, id)).returning();
-
-          await tx.delete(exerciseGroupMembers).where(eq(exerciseGroupMembers.exerciseId, id));
+        if (!exercise) {
+          throw new TRPCError({ code: "NOT_FOUND" });
         }
 
+        await tx.delete(exerciseGroupMembers).where(eq(exerciseGroupMembers.exerciseId, id));
         if (groupIds.length > 0) {
-          await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: exercise.id, groupId })));
+          await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: id, groupId })));
         }
 
         return { ...exercise, groupIds };
@@ -220,30 +164,41 @@ export const exerciseRouter = router({
     }
   }),
 
-  // Undoes a fork: moves the user's own sets on it back onto the standard
-  // exercise it came from, then deletes the fork. Unlike delete, this never
-  // loses logged history — it's the safe way to give up a customization,
-  // whether or not the fork was renamed.
-  resetToDefault: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
-    const [existing] = await db.select().from(exercises).where(eq(exercises.id, input.id));
-    if (!existing || existing.userId !== ctx.userId || !existing.forkedFromId) {
-      throw new TRPCError({ code: "NOT_FOUND" });
-    }
+  // The one thing a standard exercise's page can change — which of the
+  // user's own groups it's filed into. Works for any visible exercise
+  // (standard or the user's own); only ever touches this user's own group
+  // memberships, never another user's organization of the same exercise.
+  updateGroups: writeProcedure
+    .input(z.object({ id: z.string().uuid(), groupIds: z.array(z.string().uuid()) }))
+    .mutation(async ({ ctx, input }) => {
+      await assertOwnsGroups(input.groupIds, ctx.userId);
 
-    const originalId = existing.forkedFromId;
+      const [exercise] = await db
+        .select({ id: exercises.id })
+        .from(exercises)
+        .where(and(eq(exercises.id, input.id), or(eq(exercises.userId, ctx.userId), isNull(exercises.userId))));
+      if (!exercise) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
 
-    await db.transaction(async (tx) => {
-      await tx
-        .update(sets)
-        .set({ exerciseId: originalId })
-        .where(and(eq(sets.exerciseId, input.id), eq(sets.userId, ctx.userId)));
-      // Cascades exercise_group_members for the fork; the standard exercise's
-      // own group membership (from registration) was never touched.
-      await tx.delete(exercises).where(eq(exercises.id, input.id));
-    });
+      const ownGroups = await db.select({ id: exerciseGroups.id }).from(exerciseGroups).where(eq(exerciseGroups.userId, ctx.userId));
+      const ownGroupIds = ownGroups.map((g) => g.id);
 
-    return { originalId };
-  }),
+      await db.transaction(async (tx) => {
+        if (ownGroupIds.length > 0) {
+          await tx
+            .delete(exerciseGroupMembers)
+            .where(and(eq(exerciseGroupMembers.exerciseId, input.id), inArray(exerciseGroupMembers.groupId, ownGroupIds)));
+        }
+        if (input.groupIds.length > 0) {
+          await tx
+            .insert(exerciseGroupMembers)
+            .values(input.groupIds.map((groupId) => ({ exerciseId: input.id, groupId })));
+        }
+      });
+
+      return { groupIds: input.groupIds };
+    }),
 
   delete: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
     // eq(userId, ctx.userId) already excludes standard (userId-null) exercises —
