@@ -67,7 +67,11 @@ export const adminRouter = router({
     }
 
     await db.transaction(async (tx) => {
-      // Cascades sets and exercise_group_members via their FKs.
+      // Explicit, not just cascaded from deleting exercises below — a set
+      // can be logged against a standard (shared) exercise that isn't this
+      // user's own and so never gets deleted, which wouldn't cascade to it.
+      await tx.delete(sets).where(eq(sets.userId, input.userId));
+      // Cascades exercise_group_members via its FK.
       await tx.delete(exercises).where(eq(exercises.userId, input.userId));
       await tx.delete(exerciseGroups).where(eq(exerciseGroups.userId, input.userId));
       await tx.delete(profiles).where(eq(profiles.userId, input.userId));

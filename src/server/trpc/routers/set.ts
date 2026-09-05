@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, gte, lt, ne, sql } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { getPrFields, type PreviousBest } from "@/lib/pr";
@@ -21,11 +21,12 @@ const updateSetInput = z.object({
   weightKg: z.number().min(0).optional(),
 });
 
+// A user may log sets against their own exercises and standard (shared) ones.
 async function assertOwnsExercise(exerciseId: string, userId: string) {
   const [exercise] = await db
     .select()
     .from(exercises)
-    .where(and(eq(exercises.id, exerciseId), eq(exercises.userId, userId)));
+    .where(and(eq(exercises.id, exerciseId), or(eq(exercises.userId, userId), isNull(exercises.userId))));
 
   if (!exercise) {
     throw new TRPCError({ code: "NOT_FOUND" });
@@ -34,8 +35,10 @@ async function assertOwnsExercise(exerciseId: string, userId: string) {
   return exercise;
 }
 
-async function getPreviousBest(exerciseId: string, excludeSetId?: string): Promise<PreviousBest> {
-  const conditions = [eq(sets.exerciseId, exerciseId)];
+// Scoped to the user's own sets — a standard exercise can be shared with
+// sets logged by other users too, which shouldn't count toward this user's PR.
+async function getPreviousBest(exerciseId: string, userId: string, excludeSetId?: string): Promise<PreviousBest> {
+  const conditions = [eq(sets.exerciseId, exerciseId), eq(sets.userId, userId)];
   if (excludeSetId) {
     conditions.push(ne(sets.id, excludeSetId));
   }
@@ -56,7 +59,7 @@ export const setRouter = router({
   create: writeProcedure.input(createSetInput).mutation(async ({ ctx, input }) => {
     await assertOwnsExercise(input.exerciseId, ctx.userId);
 
-    const previousBest = await getPreviousBest(input.exerciseId);
+    const previousBest = await getPreviousBest(input.exerciseId, ctx.userId);
 
     const [set] = await db
       .insert(sets)
@@ -85,7 +88,7 @@ export const setRouter = router({
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
-    const previousBest = await getPreviousBest(existing.exerciseId, id);
+    const previousBest = await getPreviousBest(existing.exerciseId, ctx.userId, id);
 
     const [set] = await db
       .update(sets)

@@ -47,10 +47,19 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
     );
   }
 
+  const isShared = exercise.userId === null;
+
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
       <BackLink href="/exercises" label="Exercises" />
       <h1 className="text-xl font-semibold px-1">Edit exercise</h1>
+
+      {isShared && (
+        <p className="text-sm text-muted px-1 -mt-4">
+          This is a shared exercise. Saving changes creates your own personal copy — everyone else keeps seeing
+          the original.
+        </p>
+      )}
 
       <ExerciseForm
         initialValues={{
@@ -69,33 +78,35 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
         errorMessage={updateExercise.error?.message}
       />
 
-      <div className="border-t border-card-border pt-4">
-        {!showDeleteConfirm ? (
-          <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-            Delete exercise
-          </Button>
-        ) : (
-          <div className="flex flex-col gap-2">
-            <p className="text-sm">
-              Delete &quot;{exercise.name}&quot;? This also deletes {exercise.setsCount} logged set
-              {exercise.setsCount === 1 ? "" : "s"}.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="primary"
-                className="bg-red-600 text-white hover:brightness-110"
-                onClick={() => deleteExercise.mutate({ id: exerciseId })}
-                disabled={deleteExercise.isPending}
-              >
-                {deleteExercise.isPending ? "Deleting…" : "Confirm delete"}
-              </Button>
-              <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>
-                Cancel
-              </Button>
+      {!isShared && (
+        <div className="border-t border-card-border pt-4">
+          {!showDeleteConfirm ? (
+            <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
+              Delete exercise
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm">
+                Delete &quot;{exercise.name}&quot;? This also deletes {exercise.setsCount} logged set
+                {exercise.setsCount === 1 ? "" : "s"}.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  className="bg-red-600 text-white hover:brightness-110"
+                  onClick={() => deleteExercise.mutate({ id: exerciseId })}
+                  disabled={deleteExercise.isPending}
+                >
+                  {deleteExercise.isPending ? "Deleting…" : "Confirm delete"}
+                </Button>
+                <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>
+                  Cancel
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </main>
   );
 }
