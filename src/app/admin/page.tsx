@@ -29,7 +29,7 @@ export default function AdminPage() {
         {users?.map((user) => (
           <Link
             key={user.userId}
-            href={`/admin/${user.userId}`}
+            href={`/admin/${user.userId}/today`}
             className="rounded-lg border border-card-border bg-card px-4 py-3 flex items-center justify-between"
           >
             <div>

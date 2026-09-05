@@ -1,6 +1,7 @@
 "use client";
 
 import { trpc } from "@/lib/trpc/client";
+import { useAppPath } from "@/components/admin/view-as-context";
 import { groupItemsByGroup } from "@/lib/group-by";
 import { HeatmapCalendar } from "@/components/stats/heatmap-calendar";
 import { AggregateCards } from "@/components/stats/aggregate-cards";
@@ -9,6 +10,7 @@ import { GroupSummaryRow } from "@/components/stats/group-summary-row";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export default function StatsPage() {
+  const appPath = useAppPath();
   const { data: heatmapData } = trpc.stats.heatmap.useQuery();
   const { data: aggregates } = trpc.stats.aggregates.useQuery();
   const { data: exercises } = trpc.exercise.list.useQuery();
@@ -39,7 +41,10 @@ export default function StatsPage() {
 
       <section className="flex flex-col gap-2">
         <p className="text-sm font-medium px-1">Last 12 weeks (tap to browse by day)</p>
-        <HeatmapCalendar performedAtDates={(heatmapData ?? []).map((set) => set.performedAt)} />
+        <HeatmapCalendar
+          performedAtDates={(heatmapData ?? []).map((set) => set.performedAt)}
+          href={appPath("/stats/history")}
+        />
       </section>
 
       <section className="flex flex-col gap-3">

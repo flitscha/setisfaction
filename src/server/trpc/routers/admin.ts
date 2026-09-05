@@ -39,6 +39,10 @@ export const adminRouter = router({
     }));
   }),
 
+  // Identity only — the target user's actual data (today/exercises/stats) is
+  // fetched by the same routers/queries their own pages use, scoped via
+  // ctx.viewUserId (see readProcedure in trpc.ts) once ViewAsProvider is
+  // mounted for this userId.
   getUser: adminProcedure.input(z.object({ userId: z.string().uuid() })).query(async ({ input }) => {
     const [authUser] = (await db.execute(
       sql`select id, email, created_at from auth.users where id = ${input.userId}`,
@@ -48,27 +52,10 @@ export const adminRouter = router({
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
-    const [totals] = await db
-      .select({
-        totalSets: count(),
-        totalTrainingDays: sql<number>`count(distinct date_trunc('day', ${sets.performedAt}))`,
-      })
-      .from(sets)
-      .where(eq(sets.userId, input.userId));
-
-    const exerciseRows = await db
-      .select()
-      .from(exercises)
-      .where(eq(exercises.userId, input.userId))
-      .orderBy(exercises.name);
-
     return {
       userId: authUser.id,
       username: usernameFromEmail(authUser.email),
       createdAt: new Date(authUser.created_at),
-      totalSets: totals.totalSets,
-      totalTrainingDays: Number(totals.totalTrainingDays),
-      exercises: exerciseRows,
     };
   }),
 

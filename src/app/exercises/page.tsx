@@ -4,10 +4,13 @@ import Link from "next/link";
 import { Layers, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
+import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { ExerciseCard } from "@/components/exercises/exercise-card";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export default function ExercisesPage() {
+  const isReadOnly = useViewAsUser() !== null;
+  const appPath = useAppPath();
   const { data: exercises, isLoading } = trpc.exercise.list.useQuery();
   const { data: groups } = trpc.group.list.useQuery();
 
@@ -20,19 +23,21 @@ export default function ExercisesPage() {
         <h1 className="text-xl font-semibold">Exercises</h1>
         <div className="flex items-center gap-2">
           <Link
-            href="/exercises/groups"
+            href={appPath("/exercises/groups")}
             className="flex items-center gap-1.5 rounded-lg border border-card-border px-3 py-2 text-sm"
           >
             <Layers size={18} />
             Groups
           </Link>
-          <Link
-            href="/exercises/new"
-            className="flex items-center gap-1.5 rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium"
-          >
-            <Plus size={18} />
-            New
-          </Link>
+          {!isReadOnly && (
+            <Link
+              href="/exercises/new"
+              className="flex items-center gap-1.5 rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium"
+            >
+              <Plus size={18} />
+              New
+            </Link>
+          )}
         </div>
       </div>
 

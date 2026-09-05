@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useAppPath } from "@/components/admin/view-as-context";
 import { formatDaysAgo } from "@/lib/date";
 
 export function GroupSummaryRow({
@@ -6,9 +7,10 @@ export function GroupSummaryRow({
 }: {
   group: { groupId: string; name: string; totalSets: number; totalTrainingDays: number; lastTrainedAt: Date | null };
 }) {
+  const appPath = useAppPath();
   return (
     <Link
-      href={`/stats/groups/${group.groupId}`}
+      href={appPath(`/stats/groups/${group.groupId}`)}
       className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:brightness-95 dark:hover:brightness-125"
     >
       <div>

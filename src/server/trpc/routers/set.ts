@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/server/db";
 import { getPrFields, type PreviousBest } from "@/lib/pr";
 import { exercises, sets } from "@/server/db/schema";
-import { protectedProcedure, router } from "../trpc";
+import { readProcedure, router, writeProcedure } from "../trpc";
 
 const createSetInput = z.object({
   exerciseId: z.string().uuid(),
@@ -53,7 +53,7 @@ async function getPreviousBest(exerciseId: string, excludeSetId?: string): Promi
 }
 
 export const setRouter = router({
-  create: protectedProcedure.input(createSetInput).mutation(async ({ ctx, input }) => {
+  create: writeProcedure.input(createSetInput).mutation(async ({ ctx, input }) => {
     await assertOwnsExercise(input.exerciseId, ctx.userId);
 
     const previousBest = await getPreviousBest(input.exerciseId);
@@ -73,7 +73,7 @@ export const setRouter = router({
     return { set, prFields: getPrFields(input, previousBest) };
   }),
 
-  update: protectedProcedure.input(updateSetInput).mutation(async ({ ctx, input }) => {
+  update: writeProcedure.input(updateSetInput).mutation(async ({ ctx, input }) => {
     const { id, ...values } = input;
 
     const [existing] = await db
@@ -100,7 +100,7 @@ export const setRouter = router({
     return { set, prFields: getPrFields(values, previousBest) };
   }),
 
-  delete: protectedProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+  delete: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
     const [deleted] = await db
       .delete(sets)
       .where(and(eq(sets.id, input.id), eq(sets.userId, ctx.userId)))
@@ -113,18 +113,18 @@ export const setRouter = router({
     return deleted;
   }),
 
-  listByExercise: protectedProcedure
+  listByExercise: readProcedure
     .input(z.object({ exerciseId: z.string().uuid() }))
     .query(({ ctx, input }) =>
       db
         .select()
         .from(sets)
-        .where(and(eq(sets.userId, ctx.userId), eq(sets.exerciseId, input.exerciseId)))
+        .where(and(eq(sets.userId, ctx.viewUserId), eq(sets.exerciseId, input.exerciseId)))
         .orderBy(asc(sets.performedAt)),
     ),
 
   // Named by day range rather than "today" since it's also used to view past days.
-  listByDay: protectedProcedure
+  listByDay: readProcedure
     .input(z.object({ dayStart: z.date(), dayEnd: z.date() }))
     .query(({ ctx, input }) =>
       db
@@ -143,7 +143,11 @@ export const setRouter = router({
         .from(sets)
         .innerJoin(exercises, eq(exercises.id, sets.exerciseId))
         .where(
-          and(eq(sets.userId, ctx.userId), gte(sets.performedAt, input.dayStart), lt(sets.performedAt, input.dayEnd)),
+          and(
+            eq(sets.userId, ctx.viewUserId),
+            gte(sets.performedAt, input.dayStart),
+            lt(sets.performedAt, input.dayEnd),
+          ),
         )
         .orderBy(asc(sets.performedAt)),
     ),

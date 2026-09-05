@@ -6,9 +6,9 @@ import { CalendarCheck, Dumbbell, LineChart } from "lucide-react";
 import { isPublicAuthPath } from "@/lib/auth-pages";
 
 const TABS = [
-  { href: "/today", label: "Today", icon: CalendarCheck },
-  { href: "/exercises", label: "Exercises", icon: Dumbbell },
-  { href: "/stats", label: "Stats", icon: LineChart },
+  { path: "/today", label: "Today", icon: CalendarCheck },
+  { path: "/exercises", label: "Exercises", icon: Dumbbell },
+  { path: "/stats", label: "Stats", icon: LineChart },
 ];
 
 export function BottomNav() {
@@ -18,13 +18,19 @@ export function BottomNav() {
     return null;
   }
 
+  // Under /admin/[userId]/*, keep the tabs pointed at that user's read-only
+  // view instead of the signed-in admin's own pages.
+  const adminViewMatch = pathname.match(/^\/admin\/([^/]+)/);
+  const basePath = adminViewMatch ? `/admin/${adminViewMatch[1]}` : "";
+
   return (
     <nav className="fixed bottom-0 inset-x-0 border-t border-card-border bg-background flex">
-      {TABS.map(({ href, label, icon: Icon }) => {
+      {TABS.map(({ path, label, icon: Icon }) => {
+        const href = `${basePath}${path}`;
         const isActive = pathname === href || pathname.startsWith(`${href}/`);
         return (
           <Link
-            key={href}
+            key={path}
             href={href}
             className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs ${
               isActive ? "text-accent" : "text-muted"

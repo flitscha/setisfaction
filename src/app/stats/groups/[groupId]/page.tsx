@@ -2,6 +2,7 @@
 
 import { use } from "react";
 import { trpc } from "@/lib/trpc/client";
+import { useAppPath } from "@/components/admin/view-as-context";
 import { aggregateCountByDay } from "@/lib/stats";
 import { HeatmapCalendar } from "@/components/stats/heatmap-calendar";
 import { TrendChart } from "@/components/stats/trend-chart";
@@ -9,6 +10,7 @@ import { BackLink } from "@/components/ui/back-link";
 
 export default function GroupStatsPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = use(params);
+  const appPath = useAppPath();
   const { data: groups } = trpc.stats.groupAggregates.useQuery();
   const { data: timeline } = trpc.stats.groupTimeline.useQuery({ groupId });
 
@@ -18,7 +20,7 @@ export default function GroupStatsPage({ params }: { params: Promise<{ groupId: 
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
-      <BackLink href="/stats" label="Stats" />
+      <BackLink href={appPath("/stats")} label="Stats" />
       <h1 className="text-xl font-semibold px-1">{group?.name ?? "…"}</h1>
 
       {group && (
@@ -29,7 +31,7 @@ export default function GroupStatsPage({ params }: { params: Promise<{ groupId: 
 
       <section className="flex flex-col gap-2">
         <p className="text-sm font-medium px-1">Last 12 weeks</p>
-        <HeatmapCalendar performedAtDates={dates} href={`/stats/history?group=${groupId}`} />
+        <HeatmapCalendar performedAtDates={dates} href={appPath(`/stats/history?group=${groupId}`)} />
       </section>
 
       <section className="flex flex-col gap-2">

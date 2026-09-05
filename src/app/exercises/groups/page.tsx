@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
+import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
 
 export default function GroupsPage() {
+  const isReadOnly = useViewAsUser() !== null;
+  const appPath = useAppPath();
   const utils = trpc.useUtils();
   const { data: groups } = trpc.group.list.useQuery();
   const [newName, setNewName] = useState("");
@@ -35,28 +38,30 @@ export default function GroupsPage() {
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
-      <BackLink href="/exercises" label="Exercises" />
+      <BackLink href={appPath("/exercises")} label="Exercises" />
       <h1 className="text-xl font-semibold px-1">Groups</h1>
       <p className="text-sm text-muted px-1">
         Group exercises (e.g. Push, Pull, Legs) to see how much you train each one. An exercise can belong to
         several groups, or none.
       </p>
 
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="New group name"
-          className="border border-card-border rounded-lg px-3 py-2 bg-transparent flex-1 min-w-0"
-        />
-        <Button
-          disabled={newName.trim() === "" || createGroup.isPending}
-          onClick={() => createGroup.mutate({ name: newName.trim() })}
-        >
-          Add
-        </Button>
-      </div>
+      {!isReadOnly && (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="New group name"
+            className="border border-card-border rounded-lg px-3 py-2 bg-transparent flex-1 min-w-0"
+          />
+          <Button
+            disabled={newName.trim() === "" || createGroup.isPending}
+            onClick={() => createGroup.mutate({ name: newName.trim() })}
+          >
+            Add
+          </Button>
+        </div>
+      )}
       {createGroup.error && <p className="text-red-600 text-sm">{createGroup.error.message}</p>}
 
       <div className="flex flex-col gap-2">
@@ -85,18 +90,22 @@ export default function GroupsPage() {
             ) : (
               <>
                 <p className="flex-1">{group.name}</p>
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setEditingId(group.id);
-                    setEditingName(group.name);
-                  }}
-                >
-                  Rename
-                </Button>
-                <Button variant="danger" onClick={() => deleteGroup.mutate({ id: group.id })}>
-                  Delete
-                </Button>
+                {!isReadOnly && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setEditingId(group.id);
+                        setEditingName(group.name);
+                      }}
+                    >
+                      Rename
+                    </Button>
+                    <Button variant="danger" onClick={() => deleteGroup.mutate({ id: group.id })}>
+                      Delete
+                    </Button>
+                  </>
+                )}
               </>
             )}
           </div>
