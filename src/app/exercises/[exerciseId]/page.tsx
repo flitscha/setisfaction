@@ -56,12 +56,14 @@ function StandardExercisePage({
     groupIds: string[];
   };
 }) {
+  const router = useRouter();
   const utils = trpc.useUtils();
   const [groupIds, setGroupIds] = useState(exercise.groupIds);
 
   const updateGroups = trpc.exercise.updateGroups.useMutation({
     onSuccess: async () => {
       await utils.exercise.list.invalidate();
+      router.push("/exercises");
     },
   });
 
@@ -77,10 +79,7 @@ function StandardExercisePage({
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
       <BackLink href="/exercises" label="Exercises" />
 
-      <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold px-1">{exercise.name}</h1>
-        <p className="text-sm text-muted px-1">Shared exercise — read-only, same for everyone.</p>
-      </div>
+      <h1 className="text-xl font-semibold px-1">{exercise.name}</h1>
 
       {exercise.description && <p className="text-sm text-muted px-1">{exercise.description}</p>}
       <p className="text-sm text-muted px-1 -mt-4">Type: {trackedLabels}</p>
@@ -93,7 +92,7 @@ function StandardExercisePage({
         onClick={() => updateGroups.mutate({ id: exercise.id, groupIds })}
         disabled={updateGroups.isPending}
       >
-        {updateGroups.isPending ? "Saving…" : "Save groups"}
+        {updateGroups.isPending ? "Saving…" : "Save"}
       </Button>
     </main>
   );
