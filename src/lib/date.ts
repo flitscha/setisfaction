@@ -14,3 +14,14 @@ export function toLocalDateKey(date: Date): string {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
+
+// "Today", "Yesterday", "N days ago" relative to the local calendar day.
+export function formatDaysAgo(date: Date): string {
+  const { start } = getLocalDayRange();
+  const otherDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((start.getTime() - otherDay.getTime()) / (24 * 60 * 60 * 1000));
+
+  if (diffDays <= 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  return `${diffDays} days ago`;
+}
