@@ -336,12 +336,12 @@ const EXERCISES = [
     timeProgressionPerWeek: 2,
   },
   {
-    name: "L-Sit (Lean)",
-    groups: ["L-Sit", "Planche"],
+    name: "L-Sit (Compressed)",
+    groups: ["L-Sit"],
     tracksReps: false,
     tracksTime: true,
     description:
-      "L-sit with the torso leaned forward over the hands instead of upright — shifts more load onto the shoulders and is commonly used as a planche-lean progression.",
+      "L-sit with the torso leaned forward over the hands instead of upright — shifts more load onto the shoulders.",
     timeBase: 8,
     timeProgressionPerWeek: 1,
   },

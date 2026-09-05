@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Info, Hash, Timer, Dumbbell } from "lucide-react";
+import { ChevronDown, Hash, Timer, Dumbbell, Pencil } from "lucide-react";
 import { useViewAsUser } from "@/components/admin/view-as-context";
 
 export function ExerciseCard({
@@ -19,46 +19,51 @@ export function ExerciseCard({
   };
   groupNames: string[];
 }) {
-  const [showDescription, setShowDescription] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const isReadOnly = useViewAsUser() !== null;
-
-  const nameBlock = (
-    <>
-      <p className="font-medium">{exercise.name}</p>
-      {groupNames.length > 0 && <p className="text-sm text-muted">{groupNames.join(" · ")}</p>}
-    </>
-  );
 
   return (
     <div className="rounded-2xl border border-card-border bg-card shadow-sm">
-      <div className="pl-4 pr-2 py-3 flex items-center justify-between gap-2">
-        {isReadOnly ? (
-          <div className="flex-1 min-w-0">{nameBlock}</div>
-        ) : (
-          <Link href={`/exercises/${exercise.id}`} className="flex-1 min-w-0">
-            {nameBlock}
-          </Link>
-        )}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="flex items-center gap-2 text-muted" aria-label="Tracked fields">
-            {exercise.tracksReps && <Hash size={18} aria-label="Tracks reps" />}
-            {exercise.tracksTime && <Timer size={18} aria-label="Tracks time" />}
-            {exercise.tracksWeight && <Dumbbell size={18} aria-label="Tracks weight" />}
-          </div>
-          {exercise.description && (
-            <button
-              onClick={() => setShowDescription((v) => !v)}
-              aria-label={showDescription ? "Hide description" : "Show description"}
-              aria-expanded={showDescription}
-              className={`p-3 rounded-full ${showDescription ? "bg-black/5 dark:bg-white/10 text-foreground" : "text-muted"}`}
-            >
-              <Info size={20} />
-            </button>
-          )}
+      <button
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        className="w-full pl-4 pr-3 py-3 flex items-center justify-between gap-2 text-left"
+      >
+        <div className="flex-1 min-w-0">
+          <p className="font-medium">{exercise.name}</p>
+          {groupNames.length > 0 && <p className="text-sm text-muted">{groupNames.join(" · ")}</p>}
         </div>
-      </div>
-      {showDescription && exercise.description && (
-        <p className="px-4 pb-3 text-sm text-muted whitespace-pre-wrap">{exercise.description}</p>
+        <ChevronDown
+          size={20}
+          className={`shrink-0 text-muted transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-3 flex flex-col gap-2 border-t border-card-border pt-3">
+          {exercise.description && (
+            <p className="text-sm text-muted whitespace-pre-wrap">{exercise.description}</p>
+          )}
+
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-muted text-sm" aria-label="Tracked fields">
+              <span>Type:</span>
+              {exercise.tracksReps && <Hash size={16} aria-label="Reps" />}
+              {exercise.tracksTime && <Timer size={16} aria-label="Time" />}
+              {exercise.tracksWeight && <Dumbbell size={16} aria-label="Weight" />}
+            </div>
+
+            {!isReadOnly && (
+              <Link
+                href={`/exercises/${exercise.id}`}
+                className="flex items-center gap-1.5 rounded-lg border border-card-border px-3 py-2 text-sm"
+              >
+                <Pencil size={14} />
+                Edit
+              </Link>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );
