@@ -2,6 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { usernameToEmail } from "@/lib/username";
+import { db } from "@/server/db";
+import { profiles } from "@/server/db/schema";
 import { publicProcedure, router } from "../trpc";
 
 export const authRouter = router({
@@ -15,7 +17,7 @@ export const authRouter = router({
     .mutation(async ({ input }) => {
       const admin = createAdminClient();
 
-      const { error } = await admin.auth.admin.createUser({
+      const { data, error } = await admin.auth.admin.createUser({
         email: usernameToEmail(input.username),
         password: input.password,
         email_confirm: true,
@@ -27,6 +29,8 @@ export const authRouter = router({
         }
         throw new TRPCError({ code: "BAD_REQUEST", message: error.message });
       }
+
+      await db.insert(profiles).values({ userId: data.user.id });
 
       return { success: true };
     }),

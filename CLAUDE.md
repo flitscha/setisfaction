@@ -29,6 +29,14 @@ Username + password, not email. The Supabase Auth API is email-based under the h
 
 Registration (`/register`, `auth.register` tRPC mutation) creates the user via the Supabase **admin** API (`SUPABASE_SERVICE_ROLE_KEY`, server-only) rather than the public `signUp()` client call — the public signup endpoint validates the email's domain has real DNS/MX records and rejects `@setisfaction.local`, while the privileged admin `createUser` (with `email_confirm: true`) bypasses that check entirely. The client then calls `signInWithPassword` right after to establish a session.
 
+## Admin
+
+- `profiles` table (`user_id` PK, `is_admin`) holds app-level flags Supabase Auth itself doesn't have a place for; a row is inserted on registration, defaulting to non-admin. Promote/demote with `npm run set-admin -- <username> [true|false]` (no UI for this — deliberately rare and manual).
+- `ctx.isAdmin` is resolved in the tRPC context from `profiles`; `adminProcedure` (in `trpc.ts`) builds on `protectedProcedure` and throws `FORBIDDEN` unless it's set.
+- Supabase Auth's users live in the `auth` schema of the same Postgres database, so the admin router reads them with a raw SQL query (`auth.users`) instead of modeling that table in Drizzle — it's Supabase-managed, not ours to migrate.
+- `/admin` (user list) and `/admin/[userId]` (read-only detail: aggregate stats + exercises) are reachable only via a shield icon in the top bar, shown when `admin.isAdmin` is true. The detail page wraps its content in an amber banner/border so viewing someone else's data as an admin is visually unmistakable.
+- Deleting a user (`admin.deleteUser`) removes their `exercises`/`exercise_groups`/`profiles` rows (cascades `sets` and `exercise_group_members` via existing FKs) and then their Supabase Auth account; blocked for the admin's own account. The client gates the button behind typing the exact username in a confirmation modal — irreversible, so no soft-delete/undo.
+
 ## Conventions
 
 - All code, identifiers, and comments in English.
