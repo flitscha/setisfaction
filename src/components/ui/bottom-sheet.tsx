@@ -17,8 +17,8 @@ export function BottomSheet({
       >
         <div className="flex items-center justify-between mb-3">
           <p className="font-medium">{title}</p>
-          <button onClick={onClose} aria-label="Close" className="text-muted hover:text-foreground">
-            <X size={20} />
+          <button onClick={onClose} aria-label="Close" className="p-2 -m-2 text-muted hover:text-foreground">
+            <X size={22} />
           </button>
         </div>
         {children}

@@ -140,7 +140,7 @@ function HistoryPageContent() {
           ) : (
             <div className="flex flex-col gap-2">
               {dayGroups.map((group) => (
-                <div key={group.exerciseName} className="rounded-xl border border-card-border px-4 py-3">
+                <div key={group.exerciseName} className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3">
                   <p className="font-medium">{group.exerciseName}</p>
                   <p className="text-sm text-muted">{group.values.join(" · ")}</p>
                 </div>

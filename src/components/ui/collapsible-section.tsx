@@ -46,15 +46,13 @@ export function CollapsibleSection({
       <button
         onClick={toggle}
         aria-expanded={open}
-        className="flex items-center justify-between gap-2 rounded-xl border border-card-border px-4 py-3 hover:bg-card w-full"
+        className="flex items-center gap-1.5 py-2.5 px-1 border-b border-card-border w-full text-muted"
       >
-        <span className="text-base font-semibold">
-          {title}
-          {count !== undefined && <span className="text-sm text-muted font-normal"> ({count})</span>}
-        </span>
-        {open ? <ChevronUp size={22} className="text-muted shrink-0" /> : <ChevronDown size={22} className="text-muted shrink-0" />}
+        {open ? <ChevronUp size={18} className="shrink-0" /> : <ChevronDown size={18} className="shrink-0" />}
+        <span className="text-sm font-semibold uppercase tracking-wide">{title}</span>
+        {count !== undefined && <span className="text-sm">{count}</span>}
       </button>
-      {open && <div className="flex flex-col gap-2 px-1">{children}</div>}
+      {open && <div className="flex flex-col gap-2">{children}</div>}
     </div>
   );
 }

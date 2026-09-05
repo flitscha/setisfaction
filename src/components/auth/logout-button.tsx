@@ -14,7 +14,7 @@ export function LogoutButton({ children }: { children?: React.ReactNode }) {
   }
 
   return (
-    <button onClick={handleLogout} aria-label="Log out" className="text-muted hover:text-foreground">
+    <button onClick={handleLogout} aria-label="Log out" className="p-2 -m-2 text-muted hover:text-foreground">
       {children ?? "Log out"}
     </button>
   );

@@ -61,7 +61,7 @@ export default function GroupsPage() {
 
       <div className="flex flex-col gap-2">
         {groups?.map((group) => (
-          <div key={group.id} className="rounded-xl border border-card-border px-4 py-3 flex items-center gap-2">
+          <div key={group.id} className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center gap-2">
             {editingId === group.id ? (
               <>
                 <input

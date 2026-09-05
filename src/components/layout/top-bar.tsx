@@ -15,7 +15,7 @@ export function TopBar() {
     <header className="border-b border-card-border px-4 py-3 flex items-center justify-between">
       <p className="font-semibold">Setisfaction</p>
       <LogoutButton>
-        <LogOut size={18} />
+        <LogOut size={20} />
       </LogoutButton>
     </header>
   );

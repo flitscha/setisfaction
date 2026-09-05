@@ -9,7 +9,7 @@ export function GroupSummaryRow({
   return (
     <Link
       href={`/stats/groups/${group.groupId}`}
-      className="rounded-xl border border-card-border px-4 py-3 flex items-center justify-between gap-3 hover:bg-card"
+      className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:brightness-95 dark:hover:brightness-125"
     >
       <div>
         <p className="font-medium">{group.name}</p>

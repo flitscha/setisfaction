@@ -42,7 +42,7 @@ export function TodayExerciseCard({
             <button
               key={set.id}
               onClick={() => onEditSet(set.id)}
-              className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm hover:bg-card min-h-11"
+              className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10 min-h-11"
             >
               {formatSetValue(set)}
               {prSetIds.has(set.id) && <Star size={12} className="fill-accent text-accent" />}

@@ -21,7 +21,7 @@ export function ExerciseCard({
   const [showDescription, setShowDescription] = useState(false);
 
   return (
-    <div className="rounded-xl border border-card-border">
+    <div className="rounded-2xl border border-card-border bg-card shadow-sm">
       <div className="pl-4 pr-2 py-3 flex items-center justify-between gap-2">
         <Link href={`/exercises/${exercise.id}`} className="flex-1 min-w-0">
           <p className="font-medium">{exercise.name}</p>
@@ -38,7 +38,7 @@ export function ExerciseCard({
               onClick={() => setShowDescription((v) => !v)}
               aria-label={showDescription ? "Hide description" : "Show description"}
               aria-expanded={showDescription}
-              className={`p-3 rounded-full ${showDescription ? "bg-card text-foreground" : "text-muted"}`}
+              className={`p-3 rounded-full ${showDescription ? "bg-black/5 dark:bg-white/10 text-foreground" : "text-muted"}`}
             >
               <Info size={20} />
             </button>
