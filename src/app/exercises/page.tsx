@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Layers, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { rankByQuery } from "@/lib/search";
+import { searchItems } from "@/lib/search";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { ExerciseCard } from "@/components/exercises/exercise-card";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
@@ -19,11 +19,10 @@ export default function ExercisesPage() {
   const { data: groups } = trpc.group.list.useQuery();
 
   const groupNameById = new Map((groups ?? []).map((g) => [g.id, g.name]));
-  // Searching drops the grouping in favor of one relevance-ranked list, so a
-  // typo'd search still surfaces the closest existing exercise instead of
-  // "no results" — the point is to catch near-duplicates before creating one.
-  const ranked = query.trim() ? rankByQuery(exercises ?? [], query) : null;
-  const sections = ranked ? null : groupItemsByGroup(exercises ?? [], groups ?? [], (exercise) => exercise.groupIds);
+  // Searching drops the grouping in favor of one filtered, relevance-ranked
+  // list — the point is to catch near-duplicates before creating one.
+  const searched = query.trim() ? searchItems(exercises ?? [], query) : null;
+  const sections = searched ? null : groupItemsByGroup(exercises ?? [], groups ?? [], (exercise) => exercise.groupIds);
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
@@ -55,10 +54,11 @@ export default function ExercisesPage() {
 
       {isLoading && <p className="text-muted px-1">Loading…</p>}
       {exercises?.length === 0 && <p className="text-muted px-1">No exercises yet.</p>}
+      {searched?.length === 0 && <p className="text-muted px-1">No matching exercises.</p>}
 
       <div className="flex flex-col gap-3">
-        {ranked
-          ? ranked.map((exercise) => (
+        {searched
+          ? searched.map((exercise) => (
               <ExerciseCard
                 key={exercise.id}
                 exercise={exercise}

@@ -1,7 +1,14 @@
-// Ranks items by how well they match a query instead of filtering them out —
-// a search box should always surface its best guess (e.g. a typo'd exercise
-// name) rather than "no results", so the caller can find an existing
-// exercise instead of accidentally creating a near-duplicate.
+// A search box should filter, not just reorder — but a typo shouldn't come
+// up empty either. Two tiers:
+//  1. The query matches a whole word in the name exactly ("squats" in
+//     "Cossack Squats") — every such match is shown, uncapped.
+//  2. Otherwise, fall back to substring/description/fuzzy scoring, keep only
+//     results above a relevance threshold, and cap it to the best few — so a
+//     near-miss (typo) still surfaces the closest exercise, but an unrelated
+//     query shows nothing rather than the whole list re-sorted.
+
+const FALLBACK_LIMIT = 5;
+const FALLBACK_SCORE_THRESHOLD = 0.5;
 
 function levenshtein(a: string, b: string): number {
   const rows = a.length + 1;
@@ -25,6 +32,16 @@ function levenshtein(a: string, b: string): number {
 
 function tokenize(text: string): string[] {
   return text.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// The query appears in the name as a whole word (word-boundary match), not
+// merely as a substring inside a longer word.
+function isExactWordMatch(name: string, query: string): boolean {
+  return new RegExp(`\\b${escapeRegExp(query)}\\b`, "i").test(name);
 }
 
 // 0..1 — how close the query is to the single best-matching word in text,
@@ -51,14 +68,23 @@ function scoreItem(item: { name: string; description?: string | null }, query: s
   return Math.max(bestTokenSimilarity(query, name), bestTokenSimilarity(query, description) * 0.8);
 }
 
-// Sorts items by relevance to the query, best first. An empty query returns
-// the list unchanged.
-export function rankByQuery<T extends { name: string; description?: string | null }>(
+// Filters items down to what actually matches the query, best first. An
+// empty query returns the list unchanged; a query with no good match
+// returns an empty array rather than the full list re-sorted.
+export function searchItems<T extends { name: string; description?: string | null }>(
   items: T[],
   query: string,
 ): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return items;
 
-  return [...items].sort((a, b) => scoreItem(b, q) - scoreItem(a, q));
+  const exactMatches = items.filter((item) => isExactWordMatch(item.name, q));
+  if (exactMatches.length > 0) return exactMatches;
+
+  return items
+    .map((item) => ({ item, score: scoreItem(item, q) }))
+    .filter(({ score }) => score >= FALLBACK_SCORE_THRESHOLD)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, FALLBACK_LIMIT)
+    .map(({ item }) => item);
 }

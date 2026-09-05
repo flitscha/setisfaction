@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { rankByQuery } from "@/lib/search";
+import { searchItems } from "@/lib/search";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { SearchInput } from "@/components/ui/search-input";
 
@@ -44,9 +44,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
   );
   const topExercises = byFrequency.filter((e) => setCountByExercise.has(e.id)).slice(0, TOP_COUNT);
 
-  // Ranked rather than filtered — surfaces the closest match even for a
-  // typo instead of coming up empty.
-  const ranked = query.trim() ? rankByQuery(byFrequency, query) : null;
+  const searched = query.trim() ? searchItems(byFrequency, query) : null;
 
   const sections = groupItemsByGroup(byFrequency, groups ?? [], (exercise) => exercise.groupIds);
 
@@ -55,10 +53,10 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
       <SearchInput value={query} onChange={setQuery} placeholder="Search exercise…" autoFocus />
 
       <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
-        {ranked ? (
+        {searched ? (
           <div className="flex flex-col gap-1">
-            {ranked.length === 0 && <p className="text-sm text-muted">No exercises yet.</p>}
-            {ranked.map((exercise) => (
+            {searched.length === 0 && <p className="text-sm text-muted">No matching exercises.</p>}
+            {searched.map((exercise) => (
               <ExerciseButton key={exercise.id} exercise={exercise} onSelect={onSelect} />
             ))}
           </div>

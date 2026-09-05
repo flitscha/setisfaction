@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, Hash, Timer, Dumbbell, Pencil } from "lucide-react";
+import { ChevronDown, Pencil } from "lucide-react";
 import { useViewAsUser } from "@/components/admin/view-as-context";
 
 export function ExerciseCard({
@@ -21,6 +21,14 @@ export function ExerciseCard({
 }) {
   const [expanded, setExpanded] = useState(false);
   const isReadOnly = useViewAsUser() !== null;
+
+  const trackedLabels = [
+    exercise.tracksReps && "Reps",
+    exercise.tracksTime && "Time",
+    exercise.tracksWeight && "Weight",
+  ]
+    .filter(Boolean)
+    .join(", ");
 
   return (
     <div className="rounded-2xl border border-card-border bg-card shadow-sm">
@@ -46,12 +54,7 @@ export function ExerciseCard({
           )}
 
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2 text-muted text-sm" aria-label="Tracked fields">
-              <span>Type:</span>
-              {exercise.tracksReps && <Hash size={16} aria-label="Reps" />}
-              {exercise.tracksTime && <Timer size={16} aria-label="Time" />}
-              {exercise.tracksWeight && <Dumbbell size={16} aria-label="Weight" />}
-            </div>
+            <p className="text-muted text-sm">Type: {trackedLabels}</p>
 
             {!isReadOnly && (
               <Link

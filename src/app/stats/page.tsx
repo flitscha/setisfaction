@@ -4,7 +4,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath } from "@/components/admin/view-as-context";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { rankByQuery } from "@/lib/search";
+import { searchItems } from "@/lib/search";
 import { HeatmapCalendar } from "@/components/stats/heatmap-calendar";
 import { AggregateCards } from "@/components/stats/aggregate-cards";
 import { ExerciseSummaryRow } from "@/components/stats/exercise-summary-row";
@@ -25,10 +25,10 @@ export default function StatsPage() {
   const sortedExercises = [...(exercises ?? [])].sort(
     (a, b) => (setCountByExercise.get(b.id) ?? 0) - (setCountByExercise.get(a.id) ?? 0),
   );
-  // Searching drops the grouping in favor of one relevance-ranked list, same
-  // as the Exercises page, so a typo still finds the right exercise's chart.
-  const rankedExercises = query.trim() ? rankByQuery(sortedExercises, query) : null;
-  const exerciseSections = rankedExercises
+  // Searching drops the grouping in favor of one filtered list, same as the
+  // Exercises page, so a typo still finds the right exercise's chart.
+  const searchedExercises = query.trim() ? searchItems(sortedExercises, query) : null;
+  const exerciseSections = searchedExercises
     ? null
     : groupItemsByGroup(sortedExercises, groups ?? [], (exercise) => exercise.groupIds);
 
@@ -62,8 +62,9 @@ export default function StatsPage() {
           <SearchInput value={query} onChange={setQuery} placeholder="Search exercises…" />
         )}
         {sortedExercises.length === 0 && <p className="text-sm text-muted px-1">No exercises yet.</p>}
-        {rankedExercises
-          ? rankedExercises.map((exercise) => <ExerciseSummaryRow key={exercise.id} exercise={exercise} />)
+        {searchedExercises?.length === 0 && <p className="text-sm text-muted px-1">No matching exercises.</p>}
+        {searchedExercises
+          ? searchedExercises.map((exercise) => <ExerciseSummaryRow key={exercise.id} exercise={exercise} />)
           : exerciseSections?.map((section) => (
               <CollapsibleSection
                 key={section.groupId ?? "ungrouped"}
