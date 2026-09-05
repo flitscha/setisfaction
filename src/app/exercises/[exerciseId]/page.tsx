@@ -14,6 +14,7 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
 
   const { data: exercise, isLoading } = trpc.exercise.getById.useQuery({ id: exerciseId });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const updateExercise = trpc.exercise.update.useMutation({
     onSuccess: async () => {
@@ -25,6 +26,14 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
   const deleteExercise = trpc.exercise.delete.useMutation({
     onSuccess: async () => {
       await utils.exercise.list.invalidate();
+      router.push("/exercises");
+    },
+  });
+
+  const resetToDefault = trpc.exercise.resetToDefault.useMutation({
+    onSuccess: async () => {
+      await utils.exercise.list.invalidate();
+      await utils.exercise.listHiddenStandard.invalidate();
       router.push("/exercises");
     },
   });
@@ -48,6 +57,7 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
   }
 
   const isShared = exercise.userId === null;
+  const canResetToDefault = exercise.forkedFrom?.name.toLowerCase() === exercise.name.toLowerCase();
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
@@ -58,6 +68,13 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
         <p className="text-sm text-muted px-1 -mt-4">
           This is a shared exercise. Saving changes creates your own personal copy — everyone else keeps seeing
           the original.
+        </p>
+      )}
+
+      {exercise.forkedFrom && !canResetToDefault && (
+        <p className="text-sm text-muted px-1 -mt-4">
+          This started as the shared &quot;{exercise.forkedFrom.name}&quot;. Renaming it keeps both visible —
+          rename it back to restore the option to reset to default below.
         </p>
       )}
 
@@ -77,6 +94,36 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
         submitLabel="Save"
         errorMessage={updateExercise.error?.message}
       />
+
+      {canResetToDefault && (
+        <div className="border-t border-card-border pt-4">
+          {!showResetConfirm ? (
+            <Button variant="secondary" onClick={() => setShowResetConfirm(true)}>
+              Reset to default
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm">
+                Reset &quot;{exercise.name}&quot; to the shared default? Your logged sets are kept — everyone
+                (including you) goes back to seeing the standard version.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="primary"
+                  onClick={() => resetToDefault.mutate({ id: exerciseId })}
+                  disabled={resetToDefault.isPending}
+                >
+                  {resetToDefault.isPending ? "Resetting…" : "Reset to default"}
+                </Button>
+                <Button variant="ghost" onClick={() => setShowResetConfirm(false)}>
+                  Cancel
+                </Button>
+              </div>
+              {resetToDefault.error && <p className="text-red-600 text-sm">{resetToDefault.error.message}</p>}
+            </div>
+          )}
+        </div>
+      )}
 
       {!isShared && (
         <div className="border-t border-card-border pt-4">

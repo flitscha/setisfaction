@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { exerciseGroupMembers, exerciseGroups, exercises, sets } from "@/server/db/schema";
@@ -78,15 +78,48 @@ export const exerciseRouter = router({
       .where(or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)))
       .orderBy(exercises.name);
 
-    // Once the user has their own edited copy of a standard exercise, hide
-    // the original standard row so it doesn't show up twice.
-    const forkedFromIds = new Set(
-      rows.filter((r) => r.userId === ctx.viewUserId && r.forkedFromId).map((r) => r.forkedFromId),
+    // Hide a standard exercise only once the user has an unrenamed fork of
+    // it — same name would otherwise show up twice, looking like a
+    // duplicate. A renamed fork reads as its own distinct exercise, so both
+    // stay visible (and there's nothing to "restore" — see listHiddenStandard).
+    const rowById = new Map(rows.map((r) => [r.id, r]));
+    const sameNameForkedFromIds = new Set(
+      rows
+        .filter((r) => r.userId === ctx.viewUserId && r.forkedFromId)
+        .filter((r) => rowById.get(r.forkedFromId!)?.name.toLowerCase() === r.name.toLowerCase())
+        .map((r) => r.forkedFromId),
     );
-    const visible = rows.filter((r) => !(r.userId === null && forkedFromIds.has(r.id)));
+    const visible = rows.filter((r) => !(r.userId === null && sameNameForkedFromIds.has(r.id)));
 
     const groupIdsByExercise = await getGroupIdsByExercise(visible.map((r) => r.id), ctx.viewUserId);
     return visible.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
+  }),
+
+  // Standard exercises the viewer has hidden by forking without renaming —
+  // each can be brought back via resetToDefault (see the Exercises page's
+  // "Hidden standard exercises" section).
+  listHiddenStandard: readProcedure.query(async ({ ctx }) => {
+    const ownForks = await db
+      .select()
+      .from(exercises)
+      .where(and(eq(exercises.userId, ctx.viewUserId), isNotNull(exercises.forkedFromId)));
+
+    if (ownForks.length === 0) return [];
+
+    const originals = await db
+      .select()
+      .from(exercises)
+      .where(
+        inArray(
+          exercises.id,
+          ownForks.map((f) => f.forkedFromId!),
+        ),
+      );
+    const originalById = new Map(originals.map((o) => [o.id, o]));
+
+    return ownForks
+      .filter((fork) => originalById.get(fork.forkedFromId!)?.name.toLowerCase() === fork.name.toLowerCase())
+      .map((fork) => ({ forkId: fork.id, name: fork.name }));
   }),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
@@ -107,7 +140,13 @@ export const exerciseRouter = router({
       .where(and(eq(sets.exerciseId, input.id), eq(sets.userId, ctx.viewUserId)));
     const groupIdsByExercise = await getGroupIdsByExercise([exercise.id], ctx.viewUserId);
 
-    return { ...exercise, setsCount, groupIds: groupIdsByExercise.get(exercise.id) ?? [] };
+    let forkedFrom: { id: string; name: string } | null = null;
+    if (exercise.forkedFromId) {
+      const [original] = await db.select().from(exercises).where(eq(exercises.id, exercise.forkedFromId));
+      if (original) forkedFrom = { id: original.id, name: original.name };
+    }
+
+    return { ...exercise, setsCount, groupIds: groupIdsByExercise.get(exercise.id) ?? [], forkedFrom };
   }),
 
   create: writeProcedure.input(createExerciseInput).mutation(async ({ ctx, input }) => {
@@ -179,6 +218,31 @@ export const exerciseRouter = router({
       }
       throw error;
     }
+  }),
+
+  // Undoes a fork: moves the user's own sets on it back onto the standard
+  // exercise it came from, then deletes the fork. Unlike delete, this never
+  // loses logged history — it's the safe way to give up a customization,
+  // whether or not the fork was renamed.
+  resetToDefault: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+    const [existing] = await db.select().from(exercises).where(eq(exercises.id, input.id));
+    if (!existing || existing.userId !== ctx.userId || !existing.forkedFromId) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+
+    const originalId = existing.forkedFromId;
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(sets)
+        .set({ exerciseId: originalId })
+        .where(and(eq(sets.exerciseId, input.id), eq(sets.userId, ctx.userId)));
+      // Cascades exercise_group_members for the fork; the standard exercise's
+      // own group membership (from registration) was never touched.
+      await tx.delete(exercises).where(eq(exercises.id, input.id));
+    });
+
+    return { originalId };
   }),
 
   delete: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
