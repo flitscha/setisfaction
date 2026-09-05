@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarCheck, Dumbbell, LineChart } from "lucide-react";
+import { CalendarCheck, LineChart } from "lucide-react";
 import { isPublicAuthPath } from "@/lib/auth-pages";
+import { PullUpIcon } from "@/components/icons/pull-up-icon";
 
 const TABS = [
   { path: "/today", label: "Today", icon: CalendarCheck },
-  { path: "/exercises", label: "Exercises", icon: Dumbbell },
+  { path: "/exercises", label: "Exercises", icon: PullUpIcon },
   { path: "/stats", label: "Stats", icon: LineChart },
 ];
 
