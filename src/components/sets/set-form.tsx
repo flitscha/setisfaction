@@ -92,7 +92,7 @@ export function SetForm({
 
       <div className="flex items-center gap-2">
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : "Log set"}
+          {isSubmitting ? "Saving…" : "Save set"}
         </Button>
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancel

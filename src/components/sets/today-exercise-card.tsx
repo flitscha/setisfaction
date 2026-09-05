@@ -1,16 +1,9 @@
 import { Star } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatSetValue } from "@/lib/format-set";
 
 type TodaySet = { id: string; reps: number | null; timeSeconds: number | null; weightKg: number | null };
-
-function formatSetValue(set: TodaySet): string {
-  const parts: string[] = [];
-  if (set.reps !== null) parts.push(`${set.reps}`);
-  if (set.timeSeconds !== null) parts.push(`${set.timeSeconds}s`);
-  if (set.weightKg !== null) parts.push(`${set.weightKg}kg`);
-  return parts.join(" / ");
-}
 
 export function TodayExerciseCard({
   exerciseName,

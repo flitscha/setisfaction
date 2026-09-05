@@ -12,6 +12,8 @@ import { GroupSummaryRow } from "@/components/stats/group-summary-row";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { SearchInput } from "@/components/ui/search-input";
 
+const FAVORITES_COUNT = 7;
+
 export default function StatsPage() {
   const appPath = useAppPath();
   const [query, setQuery] = useState("");
@@ -25,6 +27,7 @@ export default function StatsPage() {
   const sortedExercises = [...(exercises ?? [])].sort(
     (a, b) => (setCountByExercise.get(b.id) ?? 0) - (setCountByExercise.get(a.id) ?? 0),
   );
+  const favorites = sortedExercises.filter((e) => (setCountByExercise.get(e.id) ?? 0) > 0).slice(0, FAVORITES_COUNT);
   // Searching drops the grouping in favor of one filtered list, same as the
   // Exercises page, so a typo still finds the right exercise's chart.
   const searchedExercises = query.trim() ? searchItems(sortedExercises, query) : null;
@@ -55,6 +58,17 @@ export default function StatsPage() {
           href={appPath("/stats/history")}
         />
       </section>
+
+      {!query.trim() && favorites.length > 0 && (
+        <section className="flex flex-col gap-2">
+          <p className="text-sm font-medium px-1">Favorites</p>
+          <div className="flex flex-col gap-2">
+            {favorites.map((exercise) => (
+              <ExerciseSummaryRow key={exercise.id} exercise={exercise} />
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="flex flex-col gap-3">
         <p className="text-sm font-medium px-1">By exercise</p>

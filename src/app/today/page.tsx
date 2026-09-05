@@ -209,10 +209,10 @@ export default function TodayPage() {
       {!isReadOnly && !activeExercise && !editingSet && (
         <button
           onClick={() => setShowPicker(true)}
-          aria-label="Log exercise"
-          className="fixed bottom-20 right-4 rounded-full bg-accent text-accent-foreground w-14 h-14 flex items-center justify-center shadow-lg"
+          className="fixed bottom-20 right-4 rounded-full bg-accent text-accent-foreground h-14 pl-4 pr-5 flex items-center gap-1.5 shadow-lg font-medium"
         >
-          <Plus size={28} />
+          <Plus size={24} />
+          New set
         </button>
       )}
 

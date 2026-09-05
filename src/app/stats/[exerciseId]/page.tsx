@@ -4,6 +4,8 @@ import { use, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath } from "@/components/admin/view-as-context";
 import { aggregateByDay } from "@/lib/stats";
+import { formatDaysAgo, groupByLocalDay } from "@/lib/date";
+import { formatSetValue } from "@/lib/format-set";
 import { TrendChart } from "@/components/stats/trend-chart";
 import { BackLink } from "@/components/ui/back-link";
 import { Card } from "@/components/ui/card";
@@ -11,14 +13,7 @@ import { Card } from "@/components/ui/card";
 type TrackedField = "reps" | "time" | "weight";
 
 const FIELD_LABEL: Record<TrackedField, string> = { reps: "Reps", time: "Time (s)", weight: "Weight (kg)" };
-
-function formatSet(set: { reps: number | null; timeSeconds: number | null; weightKg: number | null }): string {
-  const parts: string[] = [];
-  if (set.reps !== null) parts.push(`${set.reps} reps`);
-  if (set.timeSeconds !== null) parts.push(`${set.timeSeconds}s`);
-  if (set.weightKg !== null) parts.push(`${set.weightKg}kg`);
-  return parts.join(" · ");
-}
+const RECENT_DAYS_COUNT = 10;
 
 export default function ExerciseStatsPage({ params }: { params: Promise<{ exerciseId: string }> }) {
   const { exerciseId } = use(params);
@@ -44,7 +39,7 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
   const daily = aggregateByDay(points);
   const unitLabel = activeField ? FIELD_LABEL[activeField].toLowerCase() : "";
   const allTimeBest = daily.length > 0 ? Math.max(...daily.map((d) => d.best)) : null;
-  const recentSets = [...(history ?? [])].reverse().slice(0, 10);
+  const recentDays = groupByLocalDay(history ?? [], (set) => set.performedAt).slice(0, RECENT_DAYS_COUNT);
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
@@ -96,16 +91,23 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
         <TrendChart points={daily.map((d) => ({ date: d.date, value: d.total }))} />
       </section>
 
-      {recentSets.length > 0 && (
+      {recentDays.length > 0 && (
         <section className="flex flex-col gap-2">
-          <p className="text-sm font-medium px-1">Recent sets</p>
-          <div className="flex flex-col gap-1">
-            {recentSets.map((set) => (
-              <div key={set.id} className="flex items-center justify-between rounded-lg border border-card-border px-3 py-2 text-sm">
-                <span className="text-muted">
-                  {set.performedAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                </span>
-                <span>{formatSet(set)}</span>
+          <p className="text-sm font-medium px-1">Recent training days</p>
+          <div className="flex flex-col gap-2">
+            {recentDays.map((day) => (
+              <div key={day.date.toISOString()} className="rounded-lg border border-card-border px-3 py-2">
+                <p className="text-sm text-muted mb-1.5">{formatDaysAgo(day.date)}</p>
+                <div className="flex flex-wrap gap-2">
+                  {day.items.map((set) => (
+                    <span
+                      key={set.id}
+                      className="rounded-md border border-card-border px-2 py-1 text-sm tabular-nums"
+                    >
+                      {formatSetValue(set)}
+                    </span>
+                  ))}
+                </div>
               </div>
             ))}
           </div>

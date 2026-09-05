@@ -15,6 +15,26 @@ export function toLocalDateKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+// Buckets items into local calendar days, most recent day first — each
+// day's items keep their original relative order.
+export function groupByLocalDay<T>(items: T[], getDate: (item: T) => Date): { date: Date; items: T[] }[] {
+  const byDay = new Map<string, { date: Date; items: T[] }>();
+
+  for (const item of items) {
+    const performedAt = getDate(item);
+    const key = toLocalDateKey(performedAt);
+    const existing = byDay.get(key);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      const date = new Date(performedAt.getFullYear(), performedAt.getMonth(), performedAt.getDate());
+      byDay.set(key, { date, items: [item] });
+    }
+  }
+
+  return Array.from(byDay.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
+}
+
 // "Today", "Yesterday", "N days ago" relative to the local calendar day.
 export function formatDaysAgo(date: Date): string {
   const { start } = getLocalDayRange();
