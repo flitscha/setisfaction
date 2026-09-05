@@ -15,13 +15,27 @@ Minimalist, mobile-first calisthenics workout-logging PWA. Log sets fast during 
 
 ## Data model (flat, except exercise groups)
 
-- `exercises`: id, user_id, name (case-insensitive unique per user), description (optional, shown via an info icon), tracks_reps / tracks_time / tracks_weight (booleans — at least one must be true, enforced via Zod not a DB constraint), created_at.
+- `exercises`: id, user_id (**nullable** — null means a standard exercise shared with every user; see "Shared exercise catalog" below), forked_from_id (nullable, set when a personal exercise was created by editing a standard one), name (case-insensitive unique per user, and separately unique among standard exercises via a partial index), description (optional, shown via an info icon), tracks_reps / tracks_time / tracks_weight (booleans — at least one must be true, enforced via Zod not a DB constraint), created_at.
 - `sets`: id, user_id (denormalized), exercise_id (FK, cascade delete), performed_at (its date part *is* the "training day" — there is no separate Workout/session entity), reps / time_seconds / weight_kg (all optional, shown conditionally based on the exercise's tracked fields), created_at.
 - `exercise_groups`: id, user_id, name (case-insensitive unique per user) — user-defined groupings (e.g. Push/Pull/Legs) purely for organizing and aggregate stats.
 - `exercise_group_members`: (exercise_id, group_id) composite PK — many-to-many; an exercise can belong to any number of groups or none.
 - PR badges are computed at request time via `max()` over set history for the relevant field — no separate PR table, not retroactively recomputed if history is later edited.
 - Group-level stats use set *count* per day, not a value-based chart, since a group can mix exercises with incompatible units (reps/seconds/kg).
-- `scripts/seed.mjs` (`npm run seed [username]`) replaces a user's exercises/groups/sets with a curated dev dataset — for local testing only, never run against real data you want to keep.
+- `scripts/seed.mjs` (`npm run seed [username]`) ensures the shared catalog has the full curated list (idempotent — safe to run for multiple users, reuses existing rows instead of duplicating them), then replaces that one user's own groups/sets with a realistic dev history against it — for local testing only, never run against real data you want to keep.
+
+## Shared exercise catalog
+
+Every user sees the same standard exercise list by default — `exercises.user_id IS NULL` — rather than each user getting their own duplicated copy. A personal exercise (`user_id` set) is either user-created from scratch, or a **fork**: editing a standard exercise never changes the shared row, it creates the editor's own copy (`forked_from_id` set) and moves only *that user's own* past sets onto it, so their history doesn't split and nobody else's data is touched (`exercise.update` in `exercise.ts`). The exercise list hides a standard row once the viewer has their own fork of it, so it doesn't show up twice.
+
+This touches most exercise-related queries, not just `exercise.ts` — anywhere `sets`/`exercises` are joined or scoped, use `sets.userId`, never `exercises.userId`, to mean "this viewer's own [sets/PRs/exercise-group memberships]," since a standard exercise's id is shared across users:
+- PR calculation (`getPreviousBest` in `set.ts`) and the per-exercise set counts in `stats.aggregates` are scoped to `sets.userId` — otherwise a standard exercise's PR/count would blend every user's history together.
+- Group membership (`getGroupIdsByExercise` in `exercise.ts`) joins through `exercise_groups.user_id` — a plain `exercise_group_members` lookup by exercise id would leak *other users'* group organization of the same shared exercise.
+- `admin.deleteUser` deletes a user's `sets` explicitly rather than relying on cascading from deleting their `exercises` — a standard exercise is never deleted, so that cascade alone would miss sets logged against it.
+- Logging a set (`assertOwnsExercise` in `set.ts`) allows the exercise to be either the user's own or a standard one.
+
+The migration promoting the initial production data (felix's already-seeded exercises, which matched the curated list exactly) to standard was a one-off manual `UPDATE exercises SET user_id = NULL ...` — not a script kept in the repo.
+
+Every user also starts with the same default grouping of the standard catalog (`applyStandardGrouping` in `src/server/db/standard-groups.ts`, called from `auth.register`) — their own `exercise_groups` rows, freely renamed/reassigned/deleted afterward like any group. The name→groups mapping there is a hand-kept duplicate of `scripts/seed.mjs`'s `EXERCISES` list; update both when a standard exercise is added.
 
 ## Auth
 
@@ -39,7 +53,7 @@ Registration (`/register`, `auth.register` tRPC mutation) creates the user via t
   - The client sends the viewed user's id via an `x-view-as-user-id` header, backed by an external store (`src/lib/view-as.ts`, plain module state + subscribers — not React context) so any component can read it via `useViewAsUser()`/`useAppPath()` (`src/components/admin/view-as-context.tsx`) regardless of where it sits in the tree. This matters because `TopBar` and `BottomNav` render as siblings above the admin route in `layout.tsx`, not as its descendants. `useViewAsUser()` drives read-only UI gating (hide "+", edit, delete controls) and lets `TopBar` swap in the "viewing as" bar; `useAppPath()` rewrites an app-relative link so in-page navigation stays inside the admin view instead of jumping to the admin's own pages.
   - Routes under `/admin/[userId]/...` are thin re-exports of the real pages (e.g. `export { default } from "@/app/today/page"`); `src/app/admin/[userId]/layout.tsx` fetches the target user's identity and mounts `ViewAsRegistration` to register it in the store. Adding a new top-level page later only needs one such re-export file to become admin-viewable — no duplicated UI.
   - The "viewing as" state replaces `TopBar`'s normal content with a single amber bar (back arrow + username, delete icon, exit) instead of stacking a second banner underneath — deliberately kept as one sticky bar so it isn't lost on scroll and doesn't duplicate the app's own header.
-- Deleting a user (`admin.deleteUser`) removes their `exercises`/`exercise_groups`/`profiles` rows (cascades `sets` and `exercise_group_members` via existing FKs) and then their Supabase Auth account; blocked for the admin's own account. The client gates the button (in the "viewing as" top bar) behind typing the exact username in a confirmation modal — irreversible, so no soft-delete/undo.
+- Deleting a user (`admin.deleteUser`) removes their `sets` (explicitly — see "Shared exercise catalog" below), `exercises`/`exercise_groups`/`profiles` rows (the latter two cascade `exercise_group_members` via existing FKs), and then their Supabase Auth account; blocked for the admin's own account. The client gates the button (in the "viewing as" top bar) behind typing the exact username in a confirmation modal — irreversible, so no soft-delete/undo.
 
 ## Conventions
 

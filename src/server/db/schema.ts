@@ -24,7 +24,14 @@ export const exercises = pgTable(
   "exercises",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id").notNull(),
+    // Null = a standard/shared exercise visible to every user, not owned by
+    // anyone. Set = a personal exercise, either user-created from scratch or
+    // forked from a standard one (see forkedFromId).
+    userId: uuid("user_id"),
+    // Set only when this personal exercise was created by editing a standard
+    // (userId-null) exercise — lets the exercise list hide the original
+    // standard row once a user has their own edited copy of it.
+    forkedFromId: uuid("forked_from_id"),
     name: text("name").notNull(),
     description: text("description"),
     tracksReps: boolean("tracks_reps").notNull().default(true),
@@ -35,6 +42,11 @@ export const exercises = pgTable(
   (table) => [
     // Case-insensitive uniqueness per user, so "Pull-Up" and "pull-up" can't both exist.
     uniqueIndex("exercises_user_id_lower_name_idx").on(table.userId, sql`lower(${table.name})`),
+    // Same, among standard (userId-null) exercises — a plain unique index on
+    // userId doesn't cover this because SQL never considers NULL = NULL.
+    uniqueIndex("exercises_standard_lower_name_idx")
+      .on(sql`lower(${table.name})`)
+      .where(sql`${table.userId} is null`),
     index("exercises_user_id_name_idx").on(table.userId, table.name),
   ],
 );

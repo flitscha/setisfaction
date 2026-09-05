@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { emailToUsername } from "@/lib/username";
 import { db } from "@/server/db";
 import { exerciseGroups, exercises, profiles, sets } from "@/server/db/schema";
 import { adminProcedure, protectedProcedure, router } from "../trpc";
@@ -9,10 +10,6 @@ import { adminProcedure, protectedProcedure, router } from "../trpc";
 // Supabase Auth's users live in the auth schema, not one Drizzle manages
 // migrations for — read directly via raw SQL instead of modeling the table.
 type AuthUserRow = { id: string; email: string; created_at: string };
-
-function usernameFromEmail(email: string): string {
-  return email.replace(/@setisfaction\.local$/, "");
-}
 
 export const adminRouter = router({
   // Any signed-in user can check their own admin status, so the UI can
@@ -32,7 +29,7 @@ export const adminRouter = router({
 
     return authUsers.map((row) => ({
       userId: row.id,
-      username: usernameFromEmail(row.email),
+      username: emailToUsername(row.email),
       createdAt: new Date(row.created_at),
       isAdmin: isAdminByUserId.get(row.id) ?? false,
       totalSets: setCountByUserId.get(row.id) ?? 0,
@@ -54,7 +51,7 @@ export const adminRouter = router({
 
     return {
       userId: authUser.id,
-      username: usernameFromEmail(authUser.email),
+      username: emailToUsername(authUser.email),
       createdAt: new Date(authUser.created_at),
     };
   }),
@@ -67,7 +64,11 @@ export const adminRouter = router({
     }
 
     await db.transaction(async (tx) => {
-      // Cascades sets and exercise_group_members via their FKs.
+      // Explicit, not just cascaded from deleting exercises below — a set
+      // can be logged against a standard (shared) exercise that isn't this
+      // user's own and so never gets deleted, which wouldn't cascade to it.
+      await tx.delete(sets).where(eq(sets.userId, input.userId));
+      // Cascades exercise_group_members via its FK.
       await tx.delete(exercises).where(eq(exercises.userId, input.userId));
       await tx.delete(exerciseGroups).where(eq(exerciseGroups.userId, input.userId));
       await tx.delete(profiles).where(eq(profiles.userId, input.userId));

@@ -29,7 +29,9 @@ export const statsRouter = router({
       })
       .from(exercises)
       .innerJoin(sets, eq(sets.exerciseId, exercises.id))
-      .where(eq(exercises.userId, ctx.viewUserId))
+      // sets.userId, not exercises.userId — a standard exercise's sets are
+      // this user's own, even though the exercise itself isn't user-owned.
+      .where(eq(sets.userId, ctx.viewUserId))
       .groupBy(exercises.id)
       .orderBy(desc(setCount));
 

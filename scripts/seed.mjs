@@ -1,5 +1,6 @@
-// Dev-only seed script: replaces a user's exercises/groups/sets with a curated
-// calisthenics exercise list and ~3 weeks of realistic training history.
+// Dev-only seed script: ensures the shared exercise catalog (user_id null,
+// visible to everyone) has the full curated list, then replaces one user's
+// own groups/sets with ~3 weeks of realistic training history against it.
 // Usage: node scripts/seed.mjs [username]  (defaults to "felix")
 import { config } from "dotenv";
 import postgres from "postgres";
@@ -371,10 +372,31 @@ async function main() {
   const userId = user.id;
   console.log(`Seeding data for ${email} (${userId})`);
 
+  // Resets this user's own data — never touches the shared catalog (user_id
+  // is null there) or other users' groups/sets. Deleting their groups first
+  // cascades any exercise_group_members rows for them (whether those linked
+  // a shared or a personal exercise).
   await sql`delete from sets where user_id = ${userId}`;
-  await sql`delete from exercise_group_members where exercise_id in (select id from exercises where user_id = ${userId})`;
-  await sql`delete from exercises where user_id = ${userId}`;
   await sql`delete from exercise_groups where user_id = ${userId}`;
+  await sql`delete from exercises where user_id = ${userId}`;
+
+  // Ensures the shared catalog has every curated exercise — idempotent, so
+  // running this for a second user reuses the same rows instead of
+  // duplicating them (that's the point: everyone sees the same standard list).
+  const exerciseIdByName = {};
+  for (const def of EXERCISES) {
+    const [existing] = await sql`select id from exercises where user_id is null and lower(name) = lower(${def.name})`;
+    if (existing) {
+      exerciseIdByName[def.name] = existing.id;
+      continue;
+    }
+    const [exercise] = await sql`
+      insert into exercises (user_id, name, description, tracks_reps, tracks_time, tracks_weight)
+      values (null, ${def.name}, ${def.description}, ${def.tracksReps}, ${def.tracksTime}, false)
+      returning id
+    `;
+    exerciseIdByName[def.name] = exercise.id;
+  }
 
   const groupIdByName = {};
   for (const name of GROUPS) {
@@ -382,16 +404,12 @@ async function main() {
     groupIdByName[name] = group.id;
   }
 
-  const exerciseIdByName = {};
   for (const def of EXERCISES) {
-    const [exercise] = await sql`
-      insert into exercises (user_id, name, description, tracks_reps, tracks_time, tracks_weight)
-      values (${userId}, ${def.name}, ${def.description}, ${def.tracksReps}, ${def.tracksTime}, false)
-      returning id
-    `;
-    exerciseIdByName[def.name] = exercise.id;
     for (const groupName of def.groups) {
-      await sql`insert into exercise_group_members (exercise_id, group_id) values (${exercise.id}, ${groupIdByName[groupName]})`;
+      await sql`
+        insert into exercise_group_members (exercise_id, group_id)
+        values (${exerciseIdByName[def.name]}, ${groupIdByName[groupName]})
+      `;
     }
   }
 
@@ -459,7 +477,7 @@ async function main() {
   }
 
   console.log(
-    `Inserted ${EXERCISES.length} exercises, ${GROUPS.length} groups, ${rows.length} sets across ${dates.length} sessions.`,
+    `Catalog has ${EXERCISES.length} exercises. Created ${GROUPS.length} groups and ${rows.length} sets across ${dates.length} sessions.`,
   );
 }
 

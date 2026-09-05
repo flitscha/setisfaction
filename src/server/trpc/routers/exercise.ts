@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { exerciseGroupMembers, exerciseGroups, exercises, sets } from "@/server/db/schema";
@@ -50,12 +50,16 @@ async function assertOwnsGroups(groupIds: string[], userId: string) {
   }
 }
 
-async function getGroupIdsByExercise(exerciseIds: string[]): Promise<Map<string, string[]>> {
+// Scoped to the viewing user's own groups — a shared exercise's id can be
+// filed into other users' groups too (e.g. via their own seed run), which
+// isn't this viewer's grouping to see.
+async function getGroupIdsByExercise(exerciseIds: string[], userId: string): Promise<Map<string, string[]>> {
   if (exerciseIds.length === 0) return new Map();
   const rows = await db
     .select({ exerciseId: exerciseGroupMembers.exerciseId, groupId: exerciseGroupMembers.groupId })
     .from(exerciseGroupMembers)
-    .where(inArray(exerciseGroupMembers.exerciseId, exerciseIds));
+    .innerJoin(exerciseGroups, eq(exerciseGroups.id, exerciseGroupMembers.groupId))
+    .where(and(inArray(exerciseGroupMembers.exerciseId, exerciseIds), eq(exerciseGroups.userId, userId)));
 
   const map = new Map<string, string[]>();
   for (const row of rows) {
@@ -68,23 +72,40 @@ async function getGroupIdsByExercise(exerciseIds: string[]): Promise<Map<string,
 
 export const exerciseRouter = router({
   list: readProcedure.query(async ({ ctx }) => {
-    const rows = await db.select().from(exercises).where(eq(exercises.userId, ctx.viewUserId)).orderBy(exercises.name);
-    const groupIdsByExercise = await getGroupIdsByExercise(rows.map((r) => r.id));
-    return rows.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
+    const rows = await db
+      .select()
+      .from(exercises)
+      .where(or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)))
+      .orderBy(exercises.name);
+
+    // Once the user has their own edited copy of a standard exercise, hide
+    // the original standard row so it doesn't show up twice.
+    const forkedFromIds = new Set(
+      rows.filter((r) => r.userId === ctx.viewUserId && r.forkedFromId).map((r) => r.forkedFromId),
+    );
+    const visible = rows.filter((r) => !(r.userId === null && forkedFromIds.has(r.id)));
+
+    const groupIdsByExercise = await getGroupIdsByExercise(visible.map((r) => r.id), ctx.viewUserId);
+    return visible.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
   }),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     const [exercise] = await db
       .select()
       .from(exercises)
-      .where(and(eq(exercises.id, input.id), eq(exercises.userId, ctx.viewUserId)));
+      .where(and(eq(exercises.id, input.id), or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId))));
 
     if (!exercise) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
-    const [{ value: setsCount }] = await db.select({ value: count() }).from(sets).where(eq(sets.exerciseId, input.id));
-    const groupIdsByExercise = await getGroupIdsByExercise([exercise.id]);
+    // Scoped to this user's own sets — a standard exercise can be shared
+    // with sets logged by other users too, which aren't this viewer's to count.
+    const [{ value: setsCount }] = await db
+      .select({ value: count() })
+      .from(sets)
+      .where(and(eq(sets.exerciseId, input.id), eq(sets.userId, ctx.viewUserId)));
+    const groupIdsByExercise = await getGroupIdsByExercise([exercise.id], ctx.viewUserId);
 
     return { ...exercise, setsCount, groupIds: groupIdsByExercise.get(exercise.id) ?? [] };
   }),
@@ -118,21 +139,36 @@ export const exerciseRouter = router({
     const { id, groupIds, ...values } = input;
     await assertOwnsGroups(groupIds, ctx.userId);
 
+    const [existing] = await db.select().from(exercises).where(eq(exercises.id, id));
+    if (!existing || (existing.userId !== null && existing.userId !== ctx.userId)) {
+      throw new TRPCError({ code: "NOT_FOUND" });
+    }
+
     try {
       return await db.transaction(async (tx) => {
-        const [exercise] = await tx
-          .update(exercises)
-          .set(values)
-          .where(and(eq(exercises.id, id), eq(exercises.userId, ctx.userId)))
-          .returning();
+        let exercise: typeof exercises.$inferSelect;
 
-        if (!exercise) {
-          throw new TRPCError({ code: "NOT_FOUND" });
+        if (existing.userId === null) {
+          // Standard (shared) exercise: don't edit the shared row itself —
+          // fork a personal copy, and move only this user's own past sets
+          // onto it so their history doesn't split across two exercise ids.
+          [exercise] = await tx
+            .insert(exercises)
+            .values({ ...values, userId: ctx.userId, forkedFromId: id })
+            .returning();
+
+          await tx
+            .update(sets)
+            .set({ exerciseId: exercise.id })
+            .where(and(eq(sets.exerciseId, id), eq(sets.userId, ctx.userId)));
+        } else {
+          [exercise] = await tx.update(exercises).set(values).where(eq(exercises.id, id)).returning();
+
+          await tx.delete(exerciseGroupMembers).where(eq(exerciseGroupMembers.exerciseId, id));
         }
 
-        await tx.delete(exerciseGroupMembers).where(eq(exerciseGroupMembers.exerciseId, id));
         if (groupIds.length > 0) {
-          await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: id, groupId })));
+          await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: exercise.id, groupId })));
         }
 
         return { ...exercise, groupIds };
@@ -146,6 +182,8 @@ export const exerciseRouter = router({
   }),
 
   delete: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
+    // eq(userId, ctx.userId) already excludes standard (userId-null) exercises —
+    // SQL equality never matches NULL, so there's nothing shared to accidentally delete here.
     const [deleted] = await db
       .delete(exercises)
       .where(and(eq(exercises.id, input.id), eq(exercises.userId, ctx.userId)))

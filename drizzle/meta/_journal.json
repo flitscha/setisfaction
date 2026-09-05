@@ -29,6 +29,13 @@
       "when": 1788614296933,
       "tag": "0003_strange_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788622578607,
+      "tag": "0004_ancient_shockwave",
+      "breakpoints": true
     }
   ]
 }

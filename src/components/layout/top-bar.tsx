@@ -14,6 +14,7 @@ export function TopBar() {
   const isPublic = isPublicAuthPath(pathname);
   const viewAsUser = useViewAsUser();
   const { data: isAdmin } = trpc.admin.isAdmin.useQuery(undefined, { enabled: !isPublic });
+  const { data: me } = trpc.auth.me.useQuery(undefined, { enabled: !isPublic && !viewAsUser });
 
   if (isPublic) {
     return null;
@@ -40,6 +41,7 @@ export function TopBar() {
     <header className="border-b border-card-border px-4 py-3 flex items-center justify-between">
       <p className="font-semibold">Setisfaction</p>
       <div className="flex items-center gap-3">
+        {me && <span className="text-sm text-muted">{me.username}</span>}
         {isAdmin && (
           <Link href="/admin" aria-label="Admin" className="text-muted hover:text-foreground">
             <ShieldCheck size={20} />
