@@ -1,8 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isPublicAuthPath } from "@/lib/auth-pages";
 
-// Protects every page except /login, and refreshes the Supabase session cookie
-// on each request so a signed-in user stays signed in.
+// Protects every page except login/register, and refreshes the Supabase
+// session cookie on each request so a signed-in user stays signed in.
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -27,15 +28,15 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isLoginPage = request.nextUrl.pathname.startsWith("/login");
+  const isPublicAuthPage = isPublicAuthPath(request.nextUrl.pathname);
 
-  if (!user && !isLoginPage) {
+  if (!user && !isPublicAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  if (user && isLoginPage) {
+  if (user && isPublicAuthPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

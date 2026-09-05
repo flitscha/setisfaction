@@ -11,8 +11,4 @@ export function createClient() {
   );
 }
 
-// The username-based login UI maps a username to a synthetic email, since
-// Supabase Auth is email-based under the hood.
-export function usernameToEmail(username: string): string {
-  return `${username.trim().toLowerCase()}@setisfaction.local`;
-}
+export { usernameToEmail } from "@/lib/username";

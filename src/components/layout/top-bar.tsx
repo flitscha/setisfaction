@@ -3,11 +3,12 @@
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
+import { isPublicAuthPath } from "@/lib/auth-pages";
 
 export function TopBar() {
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  if (isPublicAuthPath(pathname)) {
     return null;
   }
 

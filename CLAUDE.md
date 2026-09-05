@@ -25,7 +25,9 @@ Minimalist, mobile-first calisthenics workout-logging PWA. Log sets fast during 
 
 ## Auth
 
-Username + password, not email. The Supabase Auth API is email-based under the hood, so a username is deterministically mapped to a synthetic email (`{username}@setisfaction.local`) before calling `signInWithPassword`. No public self-signup — users are created manually in the Supabase dashboard. Sessions persist (`persistSession: true`) so login isn't required every time. All routes are session-protected via Next.js middleware; `ctx.userId` in the tRPC context comes from the Supabase session, never an env var.
+Username + password, not email. The Supabase Auth API is email-based under the hood, so a username is deterministically mapped to a synthetic email (`{username}@setisfaction.local`) before calling `signInWithPassword`. Sessions persist (`persistSession: true`) so login isn't required every time. All routes are session-protected via Next.js proxy (middleware); `ctx.userId` in the tRPC context comes from the Supabase session, never an env var. `/login` and `/register` are the only public pages (`src/lib/auth-pages.ts` is the shared list the proxy and layout chrome both check).
+
+Registration (`/register`, `auth.register` tRPC mutation) creates the user via the Supabase **admin** API (`SUPABASE_SERVICE_ROLE_KEY`, server-only) rather than the public `signUp()` client call — the public signup endpoint validates the email's domain has real DNS/MX records and rejects `@setisfaction.local`, while the privileged admin `createUser` (with `email_confirm: true`) bypasses that check entirely. The client then calls `signInWithPassword` right after to establish a session.
 
 ## Conventions
 

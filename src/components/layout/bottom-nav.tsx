@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarCheck, Dumbbell, LineChart } from "lucide-react";
+import { isPublicAuthPath } from "@/lib/auth-pages";
 
 const TABS = [
   { href: "/today", label: "Today", icon: CalendarCheck },
@@ -13,7 +14,7 @@ const TABS = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (pathname === "/login") {
+  if (isPublicAuthPath(pathname)) {
     return null;
   }
 
