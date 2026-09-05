@@ -81,8 +81,18 @@ const EXERCISES = [
     tracksReps: true,
     tracksTime: false,
     description:
-      "Chin-up grip (not a wide row), on low dip bars with feet still on the ground — pull your chest up toward the bars, then lower with control.",
+      "Wide/neutral grip on low dip bars, body inclined with feet on the ground — pull your chest up toward the bars, then lower with control.",
     repBase: 10,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Bicep Rows (Dip Bars)",
+    groups: ["Pull"],
+    tracksReps: true,
+    tracksTime: false,
+    description:
+      "Like Australian Pull-Ups, but with a chin-up (underhand, shoulder-width) grip on the same low dip bars — shifts more emphasis onto the biceps.",
+    repBase: 9,
     repProgressionPerWeek: 1,
   },
   {

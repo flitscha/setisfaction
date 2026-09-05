@@ -29,7 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <TRPCProvider>
           <TopBar />
-          <div className="flex-1 flex flex-col pb-16">{children}</div>
+          <div className="flex-1 flex flex-col pb-20">{children}</div>
           <BottomNav />
         </TRPCProvider>
       </body>

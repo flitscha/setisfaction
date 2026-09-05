@@ -46,7 +46,12 @@ export default function StatsPage() {
         <p className="text-sm font-medium px-1">By exercise</p>
         {exerciseSections.length === 0 && <p className="text-sm text-muted px-1">No exercises yet.</p>}
         {exerciseSections.map((section) => (
-          <CollapsibleSection key={section.groupId ?? "ungrouped"} title={section.groupName} count={section.items.length}>
+          <CollapsibleSection
+            key={section.groupId ?? "ungrouped"}
+            storageKey={`stats-by-exercise:${section.groupId ?? "ungrouped"}`}
+            title={section.groupName}
+            count={section.items.length}
+          >
             {section.items.map((exercise) => (
               <ExerciseSummaryRow key={exercise.id} exercise={exercise} />
             ))}

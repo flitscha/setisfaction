@@ -25,11 +25,11 @@ export function BottomNav() {
           <Link
             key={href}
             href={href}
-            className={`flex-1 flex flex-col items-center gap-1 py-2 text-xs ${
+            className={`flex-1 flex flex-col items-center gap-1 py-3 text-xs ${
               isActive ? "text-accent" : "text-muted"
             }`}
           >
-            <Icon size={20} />
+            <Icon size={24} />
             {label}
           </Link>
         );

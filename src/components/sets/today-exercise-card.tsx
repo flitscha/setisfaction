@@ -31,7 +31,7 @@ export function TodayExerciseCard({
     <Card className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="font-medium">{exerciseName}</p>
-        <Button variant="secondary" onClick={onAddSet} className="px-3 py-1">
+        <Button variant="secondary" onClick={onAddSet}>
           + Set
         </Button>
       </div>
@@ -42,7 +42,7 @@ export function TodayExerciseCard({
             <button
               key={set.id}
               onClick={() => onEditSet(set.id)}
-              className="flex items-center gap-1 rounded-lg border border-card-border px-2 py-1 text-sm hover:bg-card"
+              className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm hover:bg-card min-h-11"
             >
               {formatSetValue(set)}
               {prSetIds.has(set.id) && <Star size={12} className="fill-accent text-accent" />}

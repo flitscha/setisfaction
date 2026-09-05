@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Layers, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
 import { ExerciseCard } from "@/components/exercises/exercise-card";
@@ -17,12 +18,20 @@ export default function ExercisesPage() {
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
       <div className="flex items-center justify-between px-1">
         <h1 className="text-xl font-semibold">Exercises</h1>
-        <div className="flex items-center gap-3">
-          <Link href="/exercises/groups" className="text-sm text-muted">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/exercises/groups"
+            className="flex items-center gap-1.5 rounded-lg border border-card-border px-3 py-2 text-sm"
+          >
+            <Layers size={18} />
             Groups
           </Link>
-          <Link href="/exercises/new" className="text-sm text-accent font-medium">
-            + New
+          <Link
+            href="/exercises/new"
+            className="flex items-center gap-1.5 rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium"
+          >
+            <Plus size={18} />
+            New
           </Link>
         </div>
       </div>
@@ -32,7 +41,12 @@ export default function ExercisesPage() {
 
       <div className="flex flex-col gap-3">
         {sections.map((section) => (
-          <CollapsibleSection key={section.groupId ?? "ungrouped"} title={section.groupName} count={section.items.length}>
+          <CollapsibleSection
+            key={section.groupId ?? "ungrouped"}
+            storageKey={`exercises-list:${section.groupId ?? "ungrouped"}`}
+            title={section.groupName}
+            count={section.items.length}
+          >
             {section.items.map((exercise) => (
               <ExerciseCard
                 key={exercise.id}

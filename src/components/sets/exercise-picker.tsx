@@ -17,7 +17,7 @@ function ExerciseButton({ exercise, onSelect }: { exercise: PickableExercise; on
   return (
     <button
       onClick={() => onSelect(exercise)}
-      className="text-left rounded-lg border border-card-border px-3 py-2 hover:bg-card w-full"
+      className="text-left rounded-lg border border-card-border px-3 py-2.5 min-h-11 hover:bg-card w-full"
     >
       {exercise.name}
     </button>
@@ -29,11 +29,21 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
   const { data: all } = trpc.exercise.list.useQuery();
   const { data: recent } = trpc.exercise.listRecent.useQuery();
   const { data: groups } = trpc.group.list.useQuery();
+  const { data: aggregates } = trpc.stats.aggregates.useQuery();
+
+  // Most-trained exercises surface first, both in search results and within
+  // each group, so the exercise you actually do a lot is easy to find.
+  const setCountByExercise = new Map((aggregates?.exerciseSetCounts ?? []).map((e) => [e.exerciseId, e.setCount]));
+  const byFrequency = [...(all ?? [])].sort(
+    (a, b) => (setCountByExercise.get(b.id) ?? 0) - (setCountByExercise.get(a.id) ?? 0),
+  );
 
   const trimmedQuery = query.trim().toLowerCase();
-  const filtered = trimmedQuery ? (all ?? []).filter((exercise) => exercise.name.toLowerCase().includes(trimmedQuery)) : null;
+  const filtered = trimmedQuery
+    ? byFrequency.filter((exercise) => exercise.name.toLowerCase().includes(trimmedQuery))
+    : null;
 
-  const sections = groupItemsByGroup(all ?? [], groups ?? [], (exercise) => exercise.groupIds);
+  const sections = groupItemsByGroup(byFrequency, groups ?? [], (exercise) => exercise.groupIds);
 
   return (
     <div className="flex flex-col gap-3">
@@ -43,7 +53,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         autoFocus
-        className="border border-card-border rounded-lg px-3 py-2 bg-transparent"
+        className="border border-card-border rounded-lg px-3 py-2.5 min-h-11 bg-transparent"
       />
 
       <div className="flex flex-col gap-3 max-h-96 overflow-y-auto">
@@ -70,6 +80,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
               {sections.map((section) => (
                 <CollapsibleSection
                   key={section.groupId ?? "ungrouped"}
+                  storageKey={`picker:${section.groupId ?? "ungrouped"}`}
                   title={section.groupName}
                   count={section.items.length}
                 >
