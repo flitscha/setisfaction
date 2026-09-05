@@ -50,7 +50,8 @@ export const statsRouter = router({
         name: exerciseGroups.name,
         totalSets,
         totalTrainingDays: sql<number>`count(distinct date_trunc('day', ${sets.performedAt}))`,
-        lastTrainedAt: sql<Date | null>`max(${sets.performedAt})`,
+        // The postgres driver returns a raw max() aggregate as a string, not a Date.
+        lastTrainedAt: sql<string | null>`max(${sets.performedAt})`,
       })
       .from(exerciseGroups)
       .leftJoin(exerciseGroupMembers, eq(exerciseGroupMembers.groupId, exerciseGroups.id))
@@ -59,7 +60,12 @@ export const statsRouter = router({
       .groupBy(exerciseGroups.id)
       .orderBy(exerciseGroups.name);
 
-    return rows.map((row) => ({ ...row, totalTrainingDays: Number(row.totalTrainingDays) }));
+    return rows.map((row) => ({
+      ...row,
+      totalTrainingDays: Number(row.totalTrainingDays),
+      // The postgres driver returns a raw max() aggregate as a string, not a Date.
+      lastTrainedAt: row.lastTrainedAt ? new Date(row.lastTrainedAt) : null,
+    }));
   }),
 
   groupTimeline: protectedProcedure

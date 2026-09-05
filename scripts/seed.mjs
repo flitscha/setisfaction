@@ -1,0 +1,271 @@
+// Dev-only seed script: replaces a user's exercises/groups/sets with a curated
+// calisthenics exercise list and ~3 weeks of realistic training history.
+// Usage: node scripts/seed.mjs [username]  (defaults to "felix")
+import { config } from "dotenv";
+import postgres from "postgres";
+
+config({ path: ".env.local" });
+
+const username = process.argv[2] ?? "felix";
+const email = `${username.trim().toLowerCase()}@setisfaction.local`;
+
+const sql = postgres(process.env.DATABASE_URL, { prepare: false });
+
+const EXERCISES = [
+  {
+    name: "Push-Ups",
+    group: "Push",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Standard push-up: hands shoulder-width, body in a straight line from head to heels.",
+    repBase: 15,
+    repProgressionPerWeek: 2,
+  },
+  {
+    name: "Push-Ups (Deep, Parallettes)",
+    group: "Push",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Push-ups with hands on parallettes/bars for extra range of motion below hand level.",
+    repBase: 10,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Dips",
+    group: "Push",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Parallel bar dips: lower until upper arms are roughly parallel to the ground, then press back up.",
+    repBase: 8,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Diamond Push-Ups",
+    group: "Push",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Push-ups with hands close together, thumbs and index fingers touching, forming a diamond shape.",
+    repBase: 8,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Ice Cream Makers",
+    group: "Push",
+    tracksReps: true,
+    tracksTime: false,
+    description: "On parallettes/dip bars: lean forward into a deep stretch, emphasizing triceps and shoulders.",
+    repBase: 6,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Pull-Ups",
+    group: "Pull",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Overhand grip, pull chin above the bar.",
+    repBase: 6,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Chin-Ups",
+    group: "Pull",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Underhand grip, pull chin above the bar.",
+    repBase: 7,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Australian Pull-Ups (Dip Bars)",
+    group: "Pull",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Like a chin-up, but on low dip bars with feet still on the ground — an inclined pulling row.",
+    repBase: 10,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Sissy Squats",
+    group: "Legs",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Bodyweight squat leaning back onto the toes, knees traveling forward, emphasizing the quads.",
+    repBase: 8,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Calf Raises",
+    group: "Legs",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Rise onto the balls of the feet, then lower with control.",
+    repBase: 20,
+    repProgressionPerWeek: 2,
+  },
+  {
+    name: "Side-Lying Leg Raises",
+    group: "Legs",
+    tracksReps: true,
+    tracksTime: false,
+    description: "Lying on your side, lift the top leg straight up and lower with control — targets the hip abductors.",
+    repBase: 12,
+    repProgressionPerWeek: 1,
+  },
+  {
+    name: "Handstand",
+    group: "Skills",
+    tracksReps: false,
+    tracksTime: true,
+    description: "Freestanding or wall-assisted handstand hold.",
+    timeBase: 15,
+    timeProgressionPerWeek: 3,
+  },
+  {
+    name: "Front Lever (Tuck)",
+    group: "Skills",
+    tracksReps: false,
+    tracksTime: true,
+    description: "Hanging front lever with knees tucked to the chest — the easiest front lever progression.",
+    timeBase: 8,
+    timeProgressionPerWeek: 2,
+  },
+  {
+    name: "Front Lever (Advanced)",
+    group: "Skills",
+    tracksReps: false,
+    tracksTime: true,
+    description: "Front lever with legs mostly straight (advanced tuck, straddle, or full, depending on level).",
+    timeBase: 5,
+    timeProgressionPerWeek: 1,
+  },
+  {
+    name: "L-Sit",
+    group: "Skills",
+    tracksReps: false,
+    tracksTime: true,
+    description: "Support hold with legs extended straight out in front, hips flexed to roughly 90 degrees.",
+    timeBase: 12,
+    timeProgressionPerWeek: 2,
+  },
+  {
+    name: "Seated Alternating Leg Raises (L-Sit Prep)",
+    group: "Skills",
+    tracksReps: true,
+    tracksTime: false,
+    description:
+      "Sitting on the ground, hands beside hips, alternately lift each straight leg — trains the hip flexors used in the L-sit.",
+    repBase: 10,
+    repProgressionPerWeek: 1,
+  },
+];
+
+const GROUPS = ["Push", "Pull", "Legs", "Skills"];
+
+function randomInt(min, max) {
+  return Math.floor(min + Math.random() * (max - min + 1));
+}
+
+async function main() {
+  const [user] = await sql`select id from auth.users where email = ${email}`;
+  if (!user) {
+    throw new Error(`No auth.users row for ${email}. Create the user in the Supabase dashboard first.`);
+  }
+  const userId = user.id;
+  console.log(`Seeding data for ${email} (${userId})`);
+
+  await sql`delete from sets where user_id = ${userId}`;
+  await sql`delete from exercise_group_members where exercise_id in (select id from exercises where user_id = ${userId})`;
+  await sql`delete from exercises where user_id = ${userId}`;
+  await sql`delete from exercise_groups where user_id = ${userId}`;
+
+  const groupIdByName = {};
+  for (const name of GROUPS) {
+    const [group] = await sql`insert into exercise_groups (user_id, name) values (${userId}, ${name}) returning id`;
+    groupIdByName[name] = group.id;
+  }
+
+  const exerciseIdByName = {};
+  for (const def of EXERCISES) {
+    const [exercise] = await sql`
+      insert into exercises (user_id, name, description, tracks_reps, tracks_time, tracks_weight)
+      values (${userId}, ${def.name}, ${def.description}, ${def.tracksReps}, ${def.tracksTime}, false)
+      returning id
+    `;
+    exerciseIdByName[def.name] = exercise.id;
+    await sql`insert into exercise_group_members (exercise_id, group_id) values (${exercise.id}, ${groupIdByName[def.group]})`;
+  }
+
+  // 9 sessions (3 weeks x 3/week) on Mon/Wed/Fri, ending on the most recent one at or before today.
+  const TRAINING_WEEKDAYS = [1, 3, 5];
+  const dates = [];
+  const cursor = new Date();
+  cursor.setHours(0, 0, 0, 0);
+  while (dates.length < 9) {
+    if (TRAINING_WEEKDAYS.includes(cursor.getDay())) {
+      dates.push(new Date(cursor));
+    }
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  dates.reverse();
+
+  const byGroup = Object.fromEntries(
+    ["Push", "Pull", "Legs"].map((group) => [group, EXERCISES.filter((e) => e.group === group).map((e) => e.name)]),
+  );
+  const rotation = ["Push", "Pull", "Legs"];
+  const skillPool = ["Front Lever (Tuck)", "L-Sit", "Front Lever (Advanced)"];
+
+  const rows = [];
+
+  dates.forEach((date, sessionIndex) => {
+    const weekIndex = Math.floor(sessionIndex / 3);
+    const primaryGroup = rotation[sessionIndex % rotation.length];
+    const candidates = byGroup[primaryGroup];
+    const chosenNames = [0, 1, 2].map((offset) => candidates[(sessionIndex + offset) % candidates.length]);
+    const skillNames = ["Handstand", skillPool[sessionIndex % skillPool.length]];
+
+    for (const name of [...chosenNames, ...skillNames]) {
+      const def = EXERCISES.find((e) => e.name === name);
+      const setCount = randomInt(3, 4);
+
+      for (let setIndex = 0; setIndex < setCount; setIndex++) {
+        const performedAt = new Date(date);
+        performedAt.setHours(18 + randomInt(0, 1), randomInt(0, 45) + setIndex * 3, 0, 0);
+
+        let reps = null;
+        let timeSeconds = null;
+
+        if (def.tracksReps) {
+          const fatigue = setIndex * randomInt(1, 2);
+          reps = Math.max(3, Math.round(def.repBase + weekIndex * def.repProgressionPerWeek - fatigue + randomInt(-1, 1)));
+        }
+        if (def.tracksTime) {
+          const fatigue = setIndex * randomInt(1, 3);
+          timeSeconds = Math.max(
+            3,
+            Math.round(def.timeBase + weekIndex * def.timeProgressionPerWeek - fatigue + randomInt(-2, 2)),
+          );
+        }
+
+        rows.push({ exerciseId: exerciseIdByName[name], performedAt, reps, timeSeconds });
+      }
+    }
+  });
+
+  for (const row of rows) {
+    await sql`
+      insert into sets (user_id, exercise_id, performed_at, reps, time_seconds)
+      values (${userId}, ${row.exerciseId}, ${row.performedAt.toISOString()}, ${row.reps}, ${row.timeSeconds})
+    `;
+  }
+
+  console.log(
+    `Inserted ${EXERCISES.length} exercises, ${GROUPS.length} groups, ${rows.length} sets across ${dates.length} sessions.`,
+  );
+}
+
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => sql.end());

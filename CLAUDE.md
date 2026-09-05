@@ -13,11 +13,15 @@ Minimalist, mobile-first calisthenics workout-logging PWA. Log sets fast during 
 - Supabase hosts Postgres and Auth (free tier).
 - Tailwind CSS, mobile-first.
 
-## Data model (flat, no hierarchy)
+## Data model (flat, except exercise groups)
 
-- `exercises`: id, user_id, name (case-insensitive unique per user), category (optional free-text tag — display/filter only, not a real hierarchy), tracks_reps / tracks_time / tracks_weight (booleans — at least one must be true, enforced via Zod not a DB constraint), created_at.
+- `exercises`: id, user_id, name (case-insensitive unique per user), description (optional, shown via an info icon), tracks_reps / tracks_time / tracks_weight (booleans — at least one must be true, enforced via Zod not a DB constraint), created_at.
 - `sets`: id, user_id (denormalized), exercise_id (FK, cascade delete), performed_at (its date part *is* the "training day" — there is no separate Workout/session entity), reps / time_seconds / weight_kg (all optional, shown conditionally based on the exercise's tracked fields), created_at.
+- `exercise_groups`: id, user_id, name (case-insensitive unique per user) — user-defined groupings (e.g. Push/Pull/Legs) purely for organizing and aggregate stats.
+- `exercise_group_members`: (exercise_id, group_id) composite PK — many-to-many; an exercise can belong to any number of groups or none.
 - PR badges are computed at request time via `max()` over set history for the relevant field — no separate PR table, not retroactively recomputed if history is later edited.
+- Group-level stats use set *count* per day, not a value-based chart, since a group can mix exercises with incompatible units (reps/seconds/kg).
+- `scripts/seed.mjs` (`npm run seed [username]`) replaces a user's exercises/groups/sets with a curated dev dataset — for local testing only, never run against real data you want to keep.
 
 ## Auth
 
