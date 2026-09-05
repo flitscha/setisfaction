@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/ui/back-link";
 
 export default function GroupsPage() {
   const utils = trpc.useUtils();
@@ -34,6 +35,7 @@ export default function GroupsPage() {
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
+      <BackLink href="/exercises" label="Exercises" />
       <h1 className="text-xl font-semibold px-1">Groups</h1>
       <p className="text-sm text-muted px-1">
         Group exercises (e.g. Push, Pull, Legs) to see how much you train each one. An exercise can belong to

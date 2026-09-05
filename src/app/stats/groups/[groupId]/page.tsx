@@ -5,6 +5,7 @@ import { trpc } from "@/lib/trpc/client";
 import { aggregateCountByDay } from "@/lib/stats";
 import { HeatmapCalendar } from "@/components/stats/heatmap-calendar";
 import { TrendChart } from "@/components/stats/trend-chart";
+import { BackLink } from "@/components/ui/back-link";
 
 export default function GroupStatsPage({ params }: { params: Promise<{ groupId: string }> }) {
   const { groupId } = use(params);
@@ -17,6 +18,7 @@ export default function GroupStatsPage({ params }: { params: Promise<{ groupId: 
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
+      <BackLink href="/stats" label="Stats" />
       <h1 className="text-xl font-semibold px-1">{group?.name ?? "…"}</h1>
 
       {group && (
@@ -27,12 +29,12 @@ export default function GroupStatsPage({ params }: { params: Promise<{ groupId: 
 
       <section className="flex flex-col gap-2">
         <p className="text-sm font-medium px-1">Last 12 weeks</p>
-        <HeatmapCalendar performedAtDates={dates} />
+        <HeatmapCalendar performedAtDates={dates} href={`/stats/history?group=${groupId}`} />
       </section>
 
       <section className="flex flex-col gap-2">
         <p className="text-sm font-medium px-1">Sets per training day</p>
-        <TrendChart points={daily.map((d) => ({ date: d.date, value: d.count }))} variant="bar" />
+        <TrendChart points={daily.map((d) => ({ date: d.date, value: d.count }))} />
       </section>
     </main>
   );

@@ -27,6 +27,19 @@ export function aggregateByDay(points: { performedAt: Date; value: number }[]): 
     .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
+// Shared color scale for anything that visualizes "sets on this day" by intensity.
+export function heatColorClass(setCount: number): string {
+  if (setCount === 0) return "bg-gray-100";
+  if (setCount <= 2) return "bg-green-200";
+  if (setCount <= 5) return "bg-green-400";
+  return "bg-green-600";
+}
+
+// Readable text color against the corresponding heatColorClass background.
+export function heatTextColorClass(setCount: number): string {
+  return setCount <= 2 ? "text-black" : "text-white";
+}
+
 export type DailyCount = { date: Date; count: number };
 
 // Like aggregateByDay, but for a group of exercises whose values aren't in the

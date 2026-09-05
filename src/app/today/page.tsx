@@ -20,7 +20,7 @@ type EditingSet = {
 export default function TodayPage() {
   const { start, end } = useMemo(() => getLocalDayRange(), []);
   const utils = trpc.useUtils();
-  const { data: todaySets } = trpc.set.listToday.useQuery({ dayStart: start, dayEnd: end });
+  const { data: todaySets } = trpc.set.listByDay.useQuery({ dayStart: start, dayEnd: end });
 
   const [showPicker, setShowPicker] = useState(false);
   const [activeExercise, setActiveExercise] = useState<PickableExercise | null>(null);
@@ -34,7 +34,7 @@ export default function TodayPage() {
 
   const createSet = trpc.set.create.useMutation({
     onSuccess: async ({ set, prFields }) => {
-      await utils.set.listToday.invalidate();
+      await utils.set.listByDay.invalidate();
       await utils.exercise.listRecent.invalidate();
       markPr(set.id, prFields);
       setActiveExercise(null);
@@ -43,7 +43,7 @@ export default function TodayPage() {
 
   const updateSet = trpc.set.update.useMutation({
     onSuccess: async ({ set, prFields }) => {
-      await utils.set.listToday.invalidate();
+      await utils.set.listByDay.invalidate();
       markPr(set.id, prFields);
       setEditingSet(null);
     },
@@ -51,7 +51,7 @@ export default function TodayPage() {
 
   const deleteSet = trpc.set.delete.useMutation({
     onSuccess: async () => {
-      await utils.set.listToday.invalidate();
+      await utils.set.listByDay.invalidate();
       setEditingSet(null);
     },
   });

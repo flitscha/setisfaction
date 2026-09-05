@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { ExerciseForm } from "@/components/exercises/exercise-form";
 import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/ui/back-link";
 
 export default function EditExercisePage({ params }: { params: Promise<{ exerciseId: string }> }) {
   const { exerciseId } = use(params);
@@ -31,7 +32,8 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
   if (isLoading) {
     return (
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <p className="text-muted px-1">Loading…</p>
+        <BackLink href="/exercises" label="Exercises" />
+        <p className="text-muted px-1 mt-4">Loading…</p>
       </main>
     );
   }
@@ -39,13 +41,15 @@ export default function EditExercisePage({ params }: { params: Promise<{ exercis
   if (!exercise) {
     return (
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <p className="text-muted px-1">Exercise not found.</p>
+        <BackLink href="/exercises" label="Exercises" />
+        <p className="text-muted px-1 mt-4">Exercise not found.</p>
       </main>
     );
   }
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
+      <BackLink href="/exercises" label="Exercises" />
       <h1 className="text-xl font-semibold px-1">Edit exercise</h1>
 
       <ExerciseForm

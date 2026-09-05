@@ -2,12 +2,15 @@
 
 import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
+import { groupItemsByGroup } from "@/lib/group-by";
 import { ExerciseCard } from "@/components/exercises/exercise-card";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 
 export default function ExercisesPage() {
   const { data: exercises, isLoading } = trpc.exercise.list.useQuery();
   const { data: groups } = trpc.group.list.useQuery();
 
+  const sections = groupItemsByGroup(exercises ?? [], groups ?? [], (exercise) => exercise.groupIds);
   const groupNameById = new Map((groups ?? []).map((g) => [g.id, g.name]));
 
   return (
@@ -27,13 +30,17 @@ export default function ExercisesPage() {
       {isLoading && <p className="text-muted px-1">Loading…</p>}
       {exercises?.length === 0 && <p className="text-muted px-1">No exercises yet.</p>}
 
-      <div className="flex flex-col gap-2">
-        {exercises?.map((exercise) => (
-          <ExerciseCard
-            key={exercise.id}
-            exercise={exercise}
-            groupNames={exercise.groupIds.map((id) => groupNameById.get(id)).filter((name): name is string => Boolean(name))}
-          />
+      <div className="flex flex-col gap-3">
+        {sections.map((section) => (
+          <CollapsibleSection key={section.groupId ?? "ungrouped"} title={section.groupName} count={section.items.length}>
+            {section.items.map((exercise) => (
+              <ExerciseCard
+                key={exercise.id}
+                exercise={exercise}
+                groupNames={exercise.groupIds.map((id) => groupNameById.get(id)).filter((name): name is string => Boolean(name))}
+              />
+            ))}
+          </CollapsibleSection>
         ))}
       </div>
     </main>

@@ -2,11 +2,9 @@ type Point = { date: Date; value: number };
 
 export function TrendChart({
   points,
-  variant = "line",
   formatValue = (value) => String(value),
 }: {
   points: Point[];
-  variant?: "line" | "bar";
   formatValue?: (value: number) => string;
 }) {
   if (points.length === 0) {
@@ -22,12 +20,16 @@ export function TrendChart({
   const plotWidth = width - paddingLeft - paddingRight;
   const plotHeight = height - paddingTop - paddingBottom;
 
+  // A single point can't show a trend, but a flat line (rather than one lone dot)
+  // makes clear this is a line chart that will fill in as more days are logged.
+  const isSinglePoint = points.length === 1;
   const values = points.map((p) => p.value);
   const maxValue = Math.max(...values);
-  const minValue = variant === "bar" ? 0 : Math.min(...values);
+  const minValue = Math.min(...values);
   const range = maxValue - minValue || 1;
 
   function yFor(value: number) {
+    if (isSinglePoint) return paddingTop + plotHeight / 2;
     return paddingTop + plotHeight - ((value - minValue) / range) * plotHeight;
   }
 
@@ -45,6 +47,8 @@ export function TrendChart({
     ),
   );
 
+  const flatY = yFor(values[0]);
+
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-36">
       <line
@@ -56,41 +60,42 @@ export function TrendChart({
         strokeOpacity={0.15}
       />
 
-      <text x={paddingLeft - 4} y={paddingTop + 4} textAnchor="end" fontSize={8} fill="currentColor" opacity={0.6}>
-        {formatValue(maxValue)}
-      </text>
-      <text x={paddingLeft - 4} y={paddingTop + plotHeight} textAnchor="end" fontSize={8} fill="currentColor" opacity={0.6}>
-        {formatValue(minValue)}
-      </text>
+      {isSinglePoint ? (
+        <text x={paddingLeft - 4} y={flatY + 3} textAnchor="end" fontSize={8} fill="currentColor" opacity={0.6}>
+          {formatValue(values[0])}
+        </text>
+      ) : (
+        <>
+          <text x={paddingLeft - 4} y={paddingTop + 4} textAnchor="end" fontSize={8} fill="currentColor" opacity={0.6}>
+            {formatValue(maxValue)}
+          </text>
+          <text
+            x={paddingLeft - 4}
+            y={paddingTop + plotHeight}
+            textAnchor="end"
+            fontSize={8}
+            fill="currentColor"
+            opacity={0.6}
+          >
+            {formatValue(minValue)}
+          </text>
+        </>
+      )}
 
-      {variant === "bar"
-        ? points.map((point, i) => {
-            const barWidth = Math.max(plotWidth / points.length - 4, 2);
-            const y = yFor(point.value);
-            return (
-              <rect
-                key={i}
-                x={xFor(i) - barWidth / 2}
-                y={y}
-                width={barWidth}
-                height={paddingTop + plotHeight - y}
-                fill="currentColor"
-                opacity={0.7}
-                rx={1}
-              />
-            );
-          })
-        : (
-            <path
-              d={points.map((p, i) => `${i === 0 ? "M" : "L"}${xFor(i)},${yFor(p.value)}`).join(" ")}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-            />
-          )}
+      <path
+        d={
+          isSinglePoint
+            ? `M${paddingLeft},${flatY} L${width - paddingRight},${flatY}`
+            : points.map((p, i) => `${i === 0 ? "M" : "L"}${xFor(i)},${yFor(p.value)}`).join(" ")
+        }
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+      />
 
-      {variant === "line" &&
-        points.map((point, i) => <circle key={i} cx={xFor(i)} cy={yFor(point.value)} r={2.5} fill="currentColor" />)}
+      {points.map((point, i) => (
+        <circle key={i} cx={xFor(i)} cy={yFor(point.value)} r={2.5} fill="currentColor" />
+      ))}
 
       {labelIndices.map((i) => (
         <text key={i} x={xFor(i)} y={height - 6} textAnchor="middle" fontSize={8} fill="currentColor" opacity={0.6}>

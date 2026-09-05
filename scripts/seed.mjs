@@ -14,7 +14,7 @@ const sql = postgres(process.env.DATABASE_URL, { prepare: false });
 const EXERCISES = [
   {
     name: "Push-Ups",
-    group: "Push",
+    groups: ["Push"],
     tracksReps: true,
     tracksTime: false,
     description: "Standard push-up: hands shoulder-width, body in a straight line from head to heels.",
@@ -23,7 +23,7 @@ const EXERCISES = [
   },
   {
     name: "Push-Ups (Deep, Parallettes)",
-    group: "Push",
+    groups: ["Push"],
     tracksReps: true,
     tracksTime: false,
     description: "Push-ups with hands on parallettes/bars for extra range of motion below hand level.",
@@ -32,7 +32,7 @@ const EXERCISES = [
   },
   {
     name: "Dips",
-    group: "Push",
+    groups: ["Push"],
     tracksReps: true,
     tracksTime: false,
     description: "Parallel bar dips: lower until upper arms are roughly parallel to the ground, then press back up.",
@@ -41,7 +41,7 @@ const EXERCISES = [
   },
   {
     name: "Diamond Push-Ups",
-    group: "Push",
+    groups: ["Push"],
     tracksReps: true,
     tracksTime: false,
     description: "Push-ups with hands close together, thumbs and index fingers touching, forming a diamond shape.",
@@ -49,17 +49,17 @@ const EXERCISES = [
     repProgressionPerWeek: 1,
   },
   {
-    name: "Ice Cream Makers",
-    group: "Push",
+    name: "Lateral Raises",
+    groups: ["Push"],
     tracksReps: true,
     tracksTime: false,
-    description: "On parallettes/dip bars: lean forward into a deep stretch, emphasizing triceps and shoulders.",
-    repBase: 6,
+    description: "Raise both arms out to the sides until roughly shoulder height, then lower with control.",
+    repBase: 12,
     repProgressionPerWeek: 1,
   },
   {
     name: "Pull-Ups",
-    group: "Pull",
+    groups: ["Pull"],
     tracksReps: true,
     tracksTime: false,
     description: "Overhand grip, pull chin above the bar.",
@@ -68,7 +68,7 @@ const EXERCISES = [
   },
   {
     name: "Chin-Ups",
-    group: "Pull",
+    groups: ["Pull"],
     tracksReps: true,
     tracksTime: false,
     description: "Underhand grip, pull chin above the bar.",
@@ -77,16 +77,27 @@ const EXERCISES = [
   },
   {
     name: "Australian Pull-Ups (Dip Bars)",
-    group: "Pull",
+    groups: ["Pull"],
     tracksReps: true,
     tracksTime: false,
-    description: "Like a chin-up, but on low dip bars with feet still on the ground — an inclined pulling row.",
+    description:
+      "Chin-up grip (not a wide row), on low dip bars with feet still on the ground — pull your chest up toward the bars, then lower with control.",
     repBase: 10,
     repProgressionPerWeek: 1,
   },
   {
+    name: "Ice Cream Makers",
+    groups: ["Pull", "Front Lever"],
+    tracksReps: true,
+    tracksTime: false,
+    description:
+      "Start in a tucked front lever, pull up into the top pull-up position, then lower back down under control — combines front lever and pull-up strength.",
+    repBase: 6,
+    repProgressionPerWeek: 1,
+  },
+  {
     name: "Sissy Squats",
-    group: "Legs",
+    groups: ["Legs"],
     tracksReps: true,
     tracksTime: false,
     description: "Bodyweight squat leaning back onto the toes, knees traveling forward, emphasizing the quads.",
@@ -95,7 +106,7 @@ const EXERCISES = [
   },
   {
     name: "Calf Raises",
-    group: "Legs",
+    groups: ["Legs"],
     tracksReps: true,
     tracksTime: false,
     description: "Rise onto the balls of the feet, then lower with control.",
@@ -104,7 +115,7 @@ const EXERCISES = [
   },
   {
     name: "Side-Lying Leg Raises",
-    group: "Legs",
+    groups: ["Legs"],
     tracksReps: true,
     tracksTime: false,
     description: "Lying on your side, lift the top leg straight up and lower with control — targets the hip abductors.",
@@ -113,7 +124,7 @@ const EXERCISES = [
   },
   {
     name: "Handstand",
-    group: "Skills",
+    groups: ["Handstand"],
     tracksReps: false,
     tracksTime: true,
     description: "Freestanding or wall-assisted handstand hold.",
@@ -122,7 +133,7 @@ const EXERCISES = [
   },
   {
     name: "Front Lever (Tuck)",
-    group: "Skills",
+    groups: ["Front Lever"],
     tracksReps: false,
     tracksTime: true,
     description: "Hanging front lever with knees tucked to the chest — the easiest front lever progression.",
@@ -131,7 +142,7 @@ const EXERCISES = [
   },
   {
     name: "Front Lever (Advanced)",
-    group: "Skills",
+    groups: ["Front Lever"],
     tracksReps: false,
     tracksTime: true,
     description: "Front lever with legs mostly straight (advanced tuck, straddle, or full, depending on level).",
@@ -140,7 +151,7 @@ const EXERCISES = [
   },
   {
     name: "L-Sit",
-    group: "Skills",
+    groups: ["L-Sit"],
     tracksReps: false,
     tracksTime: true,
     description: "Support hold with legs extended straight out in front, hips flexed to roughly 90 degrees.",
@@ -149,7 +160,7 @@ const EXERCISES = [
   },
   {
     name: "Seated Alternating Leg Raises (L-Sit Prep)",
-    group: "Skills",
+    groups: ["L-Sit"],
     tracksReps: true,
     tracksTime: false,
     description:
@@ -159,7 +170,7 @@ const EXERCISES = [
   },
 ];
 
-const GROUPS = ["Push", "Pull", "Legs", "Skills"];
+const GROUPS = ["Push", "Pull", "Legs", "Handstand", "Front Lever", "L-Sit", "Planche"];
 
 function randomInt(min, max) {
   return Math.floor(min + Math.random() * (max - min + 1));
@@ -192,7 +203,9 @@ async function main() {
       returning id
     `;
     exerciseIdByName[def.name] = exercise.id;
-    await sql`insert into exercise_group_members (exercise_id, group_id) values (${exercise.id}, ${groupIdByName[def.group]})`;
+    for (const groupName of def.groups) {
+      await sql`insert into exercise_group_members (exercise_id, group_id) values (${exercise.id}, ${groupIdByName[groupName]})`;
+    }
   }
 
   // 9 sessions (3 weeks x 3/week) on Mon/Wed/Fri, ending on the most recent one at or before today.
@@ -209,7 +222,7 @@ async function main() {
   dates.reverse();
 
   const byGroup = Object.fromEntries(
-    ["Push", "Pull", "Legs"].map((group) => [group, EXERCISES.filter((e) => e.group === group).map((e) => e.name)]),
+    ["Push", "Pull", "Legs"].map((group) => [group, EXERCISES.filter((e) => e.groups.includes(group)).map((e) => e.name)]),
   );
   const rotation = ["Push", "Pull", "Legs"];
   const skillPool = ["Front Lever (Tuck)", "L-Sit", "Front Lever (Advanced)"];

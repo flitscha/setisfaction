@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { aggregateByDay } from "@/lib/stats";
 import { TrendChart } from "@/components/stats/trend-chart";
+import { BackLink } from "@/components/ui/back-link";
 
 type TrackedField = "reps" | "time" | "weight";
 
@@ -34,6 +35,7 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
+      <BackLink href="/stats" label="Stats" />
       <h1 className="text-xl font-semibold px-1">{exercise?.name ?? "…"}</h1>
 
       {availableFields.length > 1 && (
@@ -59,7 +61,7 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
 
       <section className="flex flex-col gap-2">
         <p className="text-sm font-medium px-1">Total {unitLabel} per training day</p>
-        <TrendChart points={daily.map((d) => ({ date: d.date, value: d.total }))} variant="bar" />
+        <TrendChart points={daily.map((d) => ({ date: d.date, value: d.total }))} />
       </section>
     </main>
   );

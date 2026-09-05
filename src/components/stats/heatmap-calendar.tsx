@@ -1,15 +1,16 @@
+import Link from "next/link";
 import { toLocalDateKey } from "@/lib/date";
+import { heatColorClass } from "@/lib/stats";
 
 const DAYS_SHOWN = 84;
 
-function colorFor(setCount: number): string {
-  if (setCount === 0) return "bg-gray-100";
-  if (setCount <= 2) return "bg-green-200";
-  if (setCount <= 5) return "bg-green-400";
-  return "bg-green-600";
-}
-
-export function HeatmapCalendar({ performedAtDates }: { performedAtDates: Date[] }) {
+export function HeatmapCalendar({
+  performedAtDates,
+  href = "/stats/history",
+}: {
+  performedAtDates: Date[];
+  href?: string;
+}) {
   const countByDay = new Map<string, number>();
   for (const date of performedAtDates) {
     const key = toLocalDateKey(date);
@@ -26,14 +27,14 @@ export function HeatmapCalendar({ performedAtDates }: { performedAtDates: Date[]
   }
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <Link href={href} className="flex flex-wrap gap-1 w-fit">
       {days.map((day) => (
         <div
           key={day.key}
           title={`${day.key}: ${day.count} set${day.count === 1 ? "" : "s"}`}
-          className={`w-3 h-3 rounded-sm ${colorFor(day.count)}`}
+          className={`w-3 h-3 rounded-sm ${heatColorClass(day.count)}`}
         />
       ))}
-    </div>
+    </Link>
   );
 }

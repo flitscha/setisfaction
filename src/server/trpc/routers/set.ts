@@ -123,7 +123,8 @@ export const setRouter = router({
         .orderBy(asc(sets.performedAt)),
     ),
 
-  listToday: protectedProcedure
+  // Named by day range rather than "today" since it's also used to view past days.
+  listByDay: protectedProcedure
     .input(z.object({ dayStart: z.date(), dayEnd: z.date() }))
     .query(({ ctx, input }) =>
       db
