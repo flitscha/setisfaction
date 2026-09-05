@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
+import { rankByQuery } from "@/lib/search";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
+import { SearchInput } from "@/components/ui/search-input";
 
 export type PickableExercise = {
   id: string;
@@ -42,29 +44,21 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
   );
   const topExercises = byFrequency.filter((e) => setCountByExercise.has(e.id)).slice(0, TOP_COUNT);
 
-  const trimmedQuery = query.trim().toLowerCase();
-  const filtered = trimmedQuery
-    ? byFrequency.filter((exercise) => exercise.name.toLowerCase().includes(trimmedQuery))
-    : null;
+  // Ranked rather than filtered — surfaces the closest match even for a
+  // typo instead of coming up empty.
+  const ranked = query.trim() ? rankByQuery(byFrequency, query) : null;
 
   const sections = groupItemsByGroup(byFrequency, groups ?? [], (exercise) => exercise.groupIds);
 
   return (
     <div className="flex flex-col gap-3">
-      <input
-        type="text"
-        placeholder="Search exercise…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        autoFocus
-        className="border border-card-border rounded-lg px-3 py-2.5 min-h-11 bg-transparent"
-      />
+      <SearchInput value={query} onChange={setQuery} placeholder="Search exercise…" autoFocus />
 
       <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
-        {filtered ? (
+        {ranked ? (
           <div className="flex flex-col gap-1">
-            {filtered.length === 0 && <p className="text-sm text-muted">No exercises found.</p>}
-            {filtered.map((exercise) => (
+            {ranked.length === 0 && <p className="text-sm text-muted">No exercises yet.</p>}
+            {ranked.map((exercise) => (
               <ExerciseButton key={exercise.id} exercise={exercise} onSelect={onSelect} />
             ))}
           </div>
