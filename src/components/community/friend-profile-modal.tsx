@@ -36,6 +36,7 @@ export function FriendProfileModal() {
 
 function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendProfile> }) {
   const [exerciseId, setExerciseId] = useState<string | null>(null);
+  const [compareWithMe, setCompareWithMe] = useState(false);
 
   const { data: aggregates } = trpc.community.friendAggregates.useQuery({ userId: friend.userId });
   const { data: exercises } = trpc.community.friendExercises.useQuery({ userId: friend.userId });
@@ -51,6 +52,13 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
     .sort((a, b) => (setCountByExercise.get(b.id) ?? 0) - (setCountByExercise.get(a.id) ?? 0));
   const sections = groupItemsByGroup(trainedExercises, groups ?? [], (exercise) => exercise.groupIds);
   const activeExercise = exercises?.find((e) => e.id === exerciseId) ?? null;
+  // Only a standard exercise's id is genuinely the same one the signed-in
+  // user might also be logging against.
+  const canCompare = activeExercise?.userId === null;
+  const { data: myHistory } = trpc.set.listByExercise.useQuery(
+    { exerciseId: exerciseId ?? "" },
+    { enabled: canCompare && compareWithMe && exerciseId !== null },
+  );
 
   return (
     <div
@@ -80,7 +88,26 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
                 <h2 className="text-lg font-semibold px-1">{activeExercise.name}</h2>
                 {activeExercise.description && <p className="text-sm text-muted px-1">{activeExercise.description}</p>}
               </div>
-              {history && <ExerciseProgressView exercise={activeExercise} history={history} />}
+
+              {canCompare && (
+                <button
+                  onClick={() => setCompareWithMe((v) => !v)}
+                  className={`self-start text-sm rounded-lg px-3 py-2 min-h-11 border border-card-border ${
+                    compareWithMe ? "bg-accent text-accent-foreground border-transparent" : ""
+                  }`}
+                >
+                  Compare with me
+                </button>
+              )}
+
+              {history && (
+                <ExerciseProgressView
+                  exercise={activeExercise}
+                  history={history}
+                  primaryLabel={friend.username}
+                  comparison={compareWithMe ? { label: "You", history: myHistory ?? [] } : null}
+                />
+              )}
             </>
           ) : (
             <>

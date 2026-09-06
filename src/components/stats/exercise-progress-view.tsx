@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { aggregateByDay } from "@/lib/stats";
+import { aggregateByDay, type DailyAggregate } from "@/lib/stats";
 import { formatDaysAgo, groupByLocalDay } from "@/lib/date";
 import { formatSetValue } from "@/lib/format-set";
 import { TrendChart } from "./trend-chart";
+import { ChartLegend, ComparisonTrendChart } from "./comparison-trend-chart";
 import { Card } from "@/components/ui/card";
 
 export type TrackedField = "reps" | "time" | "weight";
@@ -21,12 +22,43 @@ export type ProgressSet = {
   weightKg: number | null;
 };
 
+function dailyForField(history: ProgressSet[], field: TrackedField | null): DailyAggregate[] {
+  const points = history
+    .map((set) => {
+      const value = field === "reps" ? set.reps : field === "time" ? set.timeSeconds : set.weightKg;
+      return value === null || value === undefined ? null : { performedAt: set.performedAt, value };
+    })
+    .filter((point): point is { performedAt: Date; value: number } => point !== null);
+  return aggregateByDay(points);
+}
+
 // The stat cards, field toggle, and charts for one exercise's history —
 // shared between the signed-in user's own /stats/[exerciseId] page and the
 // friend profile popup's exercise drill-down, so both stay visually and
 // behaviorally identical. Doesn't fetch anything or render a heading/back
 // link itself; the host page owns those.
-export function ExerciseProgressView({ exercise, history }: { exercise: ProgressExercise; history: ProgressSet[] }) {
+//
+// `comparison` overlays a second person's history on the "best per day"
+// chart — the caller decides who: the signed-in user's own page passes a
+// picked friend's history, the friend profile popup passes the signed-in
+// user's own history, and `history` itself is always the "primary" (solid)
+// series either way.
+export function ExerciseProgressView({
+  exercise,
+  history,
+  primaryLabel = "You",
+  comparison,
+}: {
+  exercise: ProgressExercise;
+  history: ProgressSet[];
+  // Label for `history` in the comparison legend — only shown/relevant when
+  // `comparison` is set. Defaults to "You" since that's the common case (the
+  // signed-in user's own page comparing against a friend); the friend
+  // profile popup overrides it to the friend's username, since there
+  // `history` is the friend's own data and the comparison is "you".
+  primaryLabel?: string;
+  comparison?: { label: string; history: ProgressSet[] } | null;
+}) {
   const [field, setField] = useState<TrackedField | null>(null);
 
   const availableFields = (["reps", "time", "weight"] as const).filter((f) => {
@@ -36,14 +68,8 @@ export function ExerciseProgressView({ exercise, history }: { exercise: Progress
   });
   const activeField = field ?? availableFields[0] ?? null;
 
-  const points = history
-    .map((set) => {
-      const value = activeField === "reps" ? set.reps : activeField === "time" ? set.timeSeconds : set.weightKg;
-      return value === null || value === undefined ? null : { performedAt: set.performedAt, value };
-    })
-    .filter((point): point is { performedAt: Date; value: number } => point !== null);
-
-  const daily = aggregateByDay(points);
+  const daily = dailyForField(history, activeField);
+  const comparisonDaily = comparison ? dailyForField(comparison.history, activeField) : null;
   const unitLabel = activeField ? FIELD_LABEL[activeField].toLowerCase() : "";
   const allTimeBest = daily.length > 0 ? Math.max(...daily.map((d) => d.best)) : null;
   const recentDays = groupByLocalDay(history, (set) => set.performedAt).slice(0, RECENT_DAYS_COUNT);
@@ -84,7 +110,33 @@ export function ExerciseProgressView({ exercise, history }: { exercise: Progress
 
       <section className="flex flex-col gap-2">
         <p className="text-sm font-medium px-1">Best per training day</p>
-        <TrendChart points={daily.map((d) => ({ date: d.date, value: d.best }))} />
+        {comparison ? (
+          <>
+            <ComparisonTrendChart
+              series={[
+                {
+                  label: primaryLabel,
+                  points: daily.map((d) => ({ date: d.date, value: d.best })),
+                  colorClassName: "text-accent",
+                },
+                {
+                  label: comparison.label,
+                  points: (comparisonDaily ?? []).map((d) => ({ date: d.date, value: d.best })),
+                  colorClassName: "text-muted",
+                  dashed: true,
+                },
+              ]}
+            />
+            <ChartLegend
+              series={[
+                { label: primaryLabel, points: [], colorClassName: "text-accent" },
+                { label: comparison.label, points: [], colorClassName: "text-muted", dashed: true },
+              ]}
+            />
+          </>
+        ) : (
+          <TrendChart points={daily.map((d) => ({ date: d.date, value: d.best }))} />
+        )}
       </section>
 
       <section className="flex flex-col gap-2">
