@@ -11,6 +11,13 @@ import { getSetsByExercise } from "./set";
 
 type AuthUserRow = { id: string; email: string; created_at: string };
 
+// Kept out of the directory (community.listUsers) specifically — not
+// friendships/requests/chat, which still work normally for anyone who ends
+// up friends with one of these regardless. Covers the fixed test fixture
+// (scripts/create-test-users.mjs) and the app owner's own account, so
+// neither clutters the "who can I add" list real friends see.
+const HIDDEN_FROM_DIRECTORY = new Set(["user1", "user2", "user3", "felix"]);
+
 // Friendships are stored with the lower id first (plain string comparison)
 // so a pair is never represented by two rows or an ambiguous direction.
 function orderedPair(a: string, b: string): [string, string] {
@@ -53,17 +60,19 @@ export const communityRouter = router({
     const incomingIds = new Set(incoming.map((r) => r.fromUserId));
     const friendIds = new Set(friendRows.map((r) => (r.userIdA === ctx.userId ? r.userIdB : r.userIdA)));
 
-    return authUsers.map((row) => ({
-      userId: row.id,
-      username: emailToUsername(row.email),
-      status: friendIds.has(row.id)
-        ? ("friends" as const)
-        : outgoingIds.has(row.id)
-          ? ("outgoing" as const)
-          : incomingIds.has(row.id)
-            ? ("incoming" as const)
-            : ("none" as const),
-    }));
+    return authUsers
+      .filter((row) => !HIDDEN_FROM_DIRECTORY.has(emailToUsername(row.email)))
+      .map((row) => ({
+        userId: row.id,
+        username: emailToUsername(row.email),
+        status: friendIds.has(row.id)
+          ? ("friends" as const)
+          : outgoingIds.has(row.id)
+            ? ("outgoing" as const)
+            : incomingIds.has(row.id)
+              ? ("incoming" as const)
+              : ("none" as const),
+      }));
   }),
 
   listFriends: protectedProcedure.query(async ({ ctx }) => {
