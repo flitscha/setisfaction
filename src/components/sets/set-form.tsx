@@ -87,8 +87,8 @@ export function SetForm({
             onChange={(e) => setTimeSeconds(e.target.value)}
             className={inputClass}
           />
-          <div className="flex items-center gap-2">
-            <Stopwatch onStop={(seconds) => setTimeSeconds(String(seconds))} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <Stopwatch onStop={(seconds) => setTimeSeconds(String(seconds))} hasExistingValue={timeSeconds !== ""} />
             {timeSeconds !== "" && (
               <div className="flex items-center gap-2 ml-auto">
                 <button

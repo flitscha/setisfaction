@@ -3,9 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
-export function Stopwatch({ onStop }: { onStop: (seconds: number) => void }) {
+export function Stopwatch({
+  onStop,
+  hasExistingValue,
+}: {
+  onStop: (seconds: number) => void;
+  // True when a time is already entered — starting fresh would silently
+  // overwrite it once stopped, so confirm first.
+  hasExistingValue?: boolean;
+}) {
   const [isRunning, setIsRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [confirmRestart, setConfirmRestart] = useState(false);
   const startRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -28,10 +37,18 @@ export function Stopwatch({ onStop }: { onStop: (seconds: number) => void }) {
     };
   }, [isRunning]);
 
-  function handleStart() {
+  function beginTiming() {
     startRef.current = Date.now();
     setElapsed(0);
     setIsRunning(true);
+  }
+
+  function handleStart() {
+    if (hasExistingValue) {
+      setConfirmRestart(true);
+      return;
+    }
+    beginTiming();
   }
 
   function handleStop() {
@@ -61,6 +78,27 @@ export function Stopwatch({ onStop }: { onStop: (seconds: number) => void }) {
         >
           Stop
         </button>
+      </div>
+    );
+  }
+
+  if (confirmRestart) {
+    return (
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-sm text-muted">Restart, replacing the current time?</span>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            setConfirmRestart(false);
+            beginTiming();
+          }}
+        >
+          Restart
+        </Button>
+        <Button type="button" variant="ghost" onClick={() => setConfirmRestart(false)}>
+          Cancel
+        </Button>
       </div>
     );
   }
