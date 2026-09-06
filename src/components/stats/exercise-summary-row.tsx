@@ -4,6 +4,7 @@ import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath } from "@/components/admin/view-as-context";
 import { aggregateByDay } from "@/lib/stats";
+import { CustomBadge } from "@/components/exercises/custom-badge";
 import { Sparkline } from "./sparkline";
 
 type TrackedField = "reps" | "time" | "weight";
@@ -20,7 +21,14 @@ function primaryField(exercise: { tracksReps: boolean; tracksTime: boolean; trac
 export function ExerciseSummaryRow({
   exercise,
 }: {
-  exercise: { id: string; name: string; tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean };
+  exercise: {
+    id: string;
+    userId: string | null;
+    name: string;
+    tracksReps: boolean;
+    tracksTime: boolean;
+    tracksWeight: boolean;
+  };
 }) {
   const appPath = useAppPath();
   const { data: history } = trpc.set.listByExercise.useQuery({ exerciseId: exercise.id });
@@ -43,8 +51,11 @@ export function ExerciseSummaryRow({
       href={appPath(`/stats/${exercise.id}`)}
       className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:brightness-95 dark:hover:brightness-125"
     >
-      <div>
-        <p className="font-medium">{exercise.name}</p>
+      <div className="min-w-0">
+        <p className="font-medium flex items-center gap-2">
+          <span className="truncate">{exercise.name}</span>
+          {exercise.userId !== null && <CustomBadge />}
+        </p>
         <p className="text-sm text-muted">
           {best !== null && field ? `Best: ${best} ${UNIT[field]}` : "No sets yet"}
         </p>

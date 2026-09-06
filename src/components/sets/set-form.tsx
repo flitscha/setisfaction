@@ -34,6 +34,12 @@ export function SetForm({
     initialValues?.timeSeconds !== undefined ? String(initialValues.timeSeconds) : "",
   );
   const [weightKg, setWeightKg] = useState(initialValues?.weightKg !== undefined ? String(initialValues.weightKg) : "");
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmingRestart, setConfirmingRestart] = useState(false);
+
+  // Only guards freshly-entered, not-yet-saved values (create flow) — cancelling
+  // an edit never loses anything, the previous values are still safely stored.
+  const hasUnsavedEntry = !initialValues && (reps !== "" || timeSeconds !== "" || weightKg !== "");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,6 +48,18 @@ export function SetForm({
       timeSeconds: exercise.tracksTime && timeSeconds !== "" ? Number(timeSeconds) : undefined,
       weightKg: exercise.tracksWeight && weightKg !== "" ? Number(weightKg) : undefined,
     });
+  }
+
+  function handleCancelClick() {
+    if (hasUnsavedEntry && !confirmCancel) {
+      setConfirmCancel(true);
+      return;
+    }
+    onCancel();
+  }
+
+  function nudgeTime(delta: number) {
+    setTimeSeconds((prev) => String(Math.max(0, Number(prev || 0) + delta)));
   }
 
   return (
@@ -63,15 +81,39 @@ export function SetForm({
       {exercise.tracksTime && (
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium">Time (seconds)</span>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              inputMode="numeric"
-              value={timeSeconds}
-              onChange={(e) => setTimeSeconds(e.target.value)}
-              className={`${inputClass} flex-1 min-w-0`}
+          <input
+            type="number"
+            inputMode="numeric"
+            value={timeSeconds}
+            onChange={(e) => setTimeSeconds(e.target.value)}
+            className={inputClass}
+          />
+          <div className="flex items-center gap-2 flex-wrap">
+            <Stopwatch
+              onStop={(seconds) => setTimeSeconds(String(seconds))}
+              hasExistingValue={timeSeconds !== ""}
+              onConfirmingRestartChange={setConfirmingRestart}
             />
-            <Stopwatch onStop={(seconds) => setTimeSeconds(String(seconds))} />
+            {timeSeconds !== "" && !confirmingRestart && (
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  onClick={() => nudgeTime(-1)}
+                  aria-label="Subtract one second"
+                  className="rounded-lg border border-card-border px-3 py-2 text-sm min-h-11"
+                >
+                  −1s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeTime(1)}
+                  aria-label="Add one second"
+                  className="rounded-lg border border-card-border px-3 py-2 text-sm min-h-11"
+                >
+                  +1s
+                </button>
+              </div>
+            )}
           </div>
         </label>
       )}
@@ -90,19 +132,31 @@ export function SetForm({
         </label>
       )}
 
-      <div className="flex items-center gap-2">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Saving…" : "Log set"}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-        {onDelete && (
-          <Button type="button" variant="danger" onClick={onDelete} disabled={isDeleting} className="ml-auto">
-            {isDeleting ? "Deleting…" : "Delete"}
+      {confirmCancel ? (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted">Discard this set?</span>
+          <Button type="button" variant="danger" onClick={onCancel} className="ml-auto">
+            Discard
           </Button>
-        )}
-      </div>
+          <Button type="button" variant="ghost" onClick={() => setConfirmCancel(false)}>
+            Keep editing
+          </Button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2">
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving…" : "Save set"}
+          </Button>
+          <Button type="button" variant="ghost" onClick={handleCancelClick}>
+            Cancel
+          </Button>
+          {onDelete && (
+            <Button type="button" variant="danger" onClick={onDelete} disabled={isDeleting} className="ml-auto">
+              {isDeleting ? "Deleting…" : "Delete"}
+            </Button>
+          )}
+        </div>
+      )}
     </form>
   );
 }

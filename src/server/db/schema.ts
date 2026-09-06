@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   boolean,
   index,
   integer,
@@ -25,18 +26,21 @@ export const exercises = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     // Null = a standard/shared exercise visible to every user, not owned by
-    // anyone. Set = a personal exercise, either user-created from scratch or
-    // forked from a standard one (see forkedFromId).
+    // anyone, and read-only (see CLAUDE.md's "Shared exercise catalog") —
+    // only its own name/description/tracked fields are locked; group
+    // membership is still per-user. Set = a personal exercise, fully owned
+    // and editable by that user.
     userId: uuid("user_id"),
-    // Set only when this personal exercise was created by editing a standard
-    // (userId-null) exercise — lets the exercise list hide the original
-    // standard row once a user has their own edited copy of it.
-    forkedFromId: uuid("forked_from_id"),
     name: text("name").notNull(),
     description: text("description"),
     tracksReps: boolean("tracks_reps").notNull().default(true),
     tracksTime: boolean("tracks_time").notNull().default(false),
     tracksWeight: boolean("tracks_weight").notNull().default(false),
+    // Set only on a personal exercise created by forking a standard one to
+    // change its tracked fields (see CLAUDE.md's "Shared exercise catalog").
+    // Points at the standard exercise it replaces for this user; that
+    // standard exercise is hidden from the user's lists while this exists.
+    forkedFromId: uuid("forked_from_id").references((): AnyPgColumn => exercises.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -48,6 +52,7 @@ export const exercises = pgTable(
       .on(sql`lower(${table.name})`)
       .where(sql`${table.userId} is null`),
     index("exercises_user_id_name_idx").on(table.userId, table.name),
+    index("exercises_forked_from_id_idx").on(table.forkedFromId),
   ],
 );
 

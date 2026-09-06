@@ -219,7 +219,7 @@ const EXERCISES = [
     timeProgressionPerWeek: 2,
   },
   {
-    name: "Front Lever (Advanced)",
+    name: "Front Lever (Advanced Tuck)",
     groups: ["Front Lever"],
     tracksReps: false,
     tracksTime: true,
@@ -270,6 +270,15 @@ const EXERCISES = [
     tracksTime: true,
     description: "Back lever with the hips extended further than the tuck, knees still bent, body more horizontal.",
     timeBase: 5,
+    timeProgressionPerWeek: 1,
+  },
+  {
+    name: "Back Lever (Full)",
+    groups: ["Back Lever"],
+    tracksReps: false,
+    tracksTime: true,
+    description: "Back lever with legs straight and together, body fully horizontal — the most advanced back lever progression.",
+    timeBase: 3,
     timeProgressionPerWeek: 1,
   },
   {
@@ -430,7 +439,7 @@ async function main() {
     ["Push", "Pull", "Legs"].map((group) => [group, EXERCISES.filter((e) => e.groups.includes(group)).map((e) => e.name)]),
   );
   const rotation = ["Push", "Pull", "Legs"];
-  const skillPool = ["Front Lever (Tuck)", "L-Sit", "Front Lever (Advanced)"];
+  const skillPool = ["Front Lever (Tuck)", "L-Sit", "Front Lever (Advanced Tuck)"];
 
   const rows = [];
 

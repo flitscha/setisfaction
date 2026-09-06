@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, Pencil } from "lucide-react";
 import { useViewAsUser } from "@/components/admin/view-as-context";
+import { CustomBadge } from "@/components/exercises/custom-badge";
 
 export function ExerciseCard({
   exercise,
@@ -11,6 +12,7 @@ export function ExerciseCard({
 }: {
   exercise: {
     id: string;
+    userId: string | null;
     name: string;
     description: string | null;
     tracksReps: boolean;
@@ -38,7 +40,10 @@ export function ExerciseCard({
         className="w-full pl-4 pr-3 py-3 flex items-center justify-between gap-2 text-left"
       >
         <div className="flex-1 min-w-0">
-          <p className="font-medium">{exercise.name}</p>
+          <p className="font-medium flex items-center gap-2">
+            <span className="truncate">{exercise.name}</span>
+            {exercise.userId !== null && <CustomBadge />}
+          </p>
           {groupNames.length > 0 && <p className="text-sm text-muted">{groupNames.join(" · ")}</p>}
         </div>
         <ChevronDown
