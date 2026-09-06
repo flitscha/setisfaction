@@ -27,13 +27,16 @@ export default function StatsPage() {
   const sortedExercises = [...(exercises ?? [])].sort(
     (a, b) => (setCountByExercise.get(b.id) ?? 0) - (setCountByExercise.get(a.id) ?? 0),
   );
-  const favorites = sortedExercises.filter((e) => (setCountByExercise.get(e.id) ?? 0) > 0).slice(0, FAVORITES_COUNT);
+  const trainedExercises = sortedExercises.filter((e) => (setCountByExercise.get(e.id) ?? 0) > 0);
+  const favorites = trainedExercises.slice(0, FAVORITES_COUNT);
   // Searching drops the grouping in favor of one filtered list, same as the
   // Exercises page, so a typo still finds the right exercise's chart.
   const searchedExercises = query.trim() ? searchItems(sortedExercises, query) : null;
+  // Only exercises with at least one logged set — an exercise never trained
+  // has nothing to show here, so it'd just be clutter.
   const exerciseSections = searchedExercises
     ? null
-    : groupItemsByGroup(sortedExercises, groups ?? [], (exercise) => exercise.groupIds);
+    : groupItemsByGroup(trainedExercises, groups ?? [], (exercise) => exercise.groupIds);
 
   // Never-trained or longest-neglected groups first, so a skipped leg day stands out.
   const sortedGroups = [...(groupAggregates ?? [])].sort((a, b) => {
@@ -59,6 +62,9 @@ export default function StatsPage() {
         />
       </section>
 
+      {sortedExercises.length > 0 && <SearchInput value={query} onChange={setQuery} placeholder="Search exercises…" />}
+      {sortedExercises.length === 0 && <p className="text-sm text-muted px-1">No exercises yet.</p>}
+
       {!query.trim() && favorites.length > 0 && (
         <section className="flex flex-col gap-2">
           <p className="text-sm font-medium px-1">Favorites</p>
@@ -72,11 +78,10 @@ export default function StatsPage() {
 
       <section className="flex flex-col gap-3">
         <p className="text-sm font-medium px-1">By exercise</p>
-        {sortedExercises.length > 0 && (
-          <SearchInput value={query} onChange={setQuery} placeholder="Search exercises…" />
-        )}
-        {sortedExercises.length === 0 && <p className="text-sm text-muted px-1">No exercises yet.</p>}
         {searchedExercises?.length === 0 && <p className="text-sm text-muted px-1">No matching exercises.</p>}
+        {!searchedExercises && trainedExercises.length === 0 && (
+          <p className="text-sm text-muted px-1">Log a set to see it here.</p>
+        )}
         {searchedExercises
           ? searchedExercises.map((exercise) => <ExerciseSummaryRow key={exercise.id} exercise={exercise} />)
           : exerciseSections?.map((section) => (
