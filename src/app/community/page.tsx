@@ -7,14 +7,16 @@ import { trpc } from "@/lib/trpc/client";
 import { openFriendProfile } from "@/lib/friend-profile";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
+import { ChatPanel } from "@/components/community/chat-panel";
 
-type Tab = "everyone" | "friends" | "requests";
-const TABS: Tab[] = ["everyone", "friends", "requests"];
+type Tab = "everyone" | "friends" | "requests" | "chat";
+const TABS: Tab[] = ["everyone", "friends", "requests", "chat"];
 
 export default function CommunityPage() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("everyone");
   const [query, setQuery] = useState("");
+  const [confirmUnfriendId, setConfirmUnfriendId] = useState<string | null>(null);
   const utils = trpc.useUtils();
 
   const { data: users } = trpc.community.listUsers.useQuery(undefined, { enabled: tab === "everyone" });
@@ -31,11 +33,33 @@ export default function CommunityPage() {
     utils.community.incomingRequestCount.invalidate();
   }
 
-  const sendRequest = trpc.community.sendRequest.useMutation({ onSuccess: invalidateAll });
+  const sendRequest = trpc.community.sendRequest.useMutation({
+    // Flips the button to "Cancel request" the instant it's tapped instead
+    // of waiting on the round trip — the rare case where this was actually
+    // an auto-accept (the other side had already sent a request) briefly
+    // shows "outgoing" until the invalidate below corrects it to "friends".
+    onMutate: async ({ userId }) => {
+      await utils.community.listUsers.cancel();
+      const previous = utils.community.listUsers.getData();
+      utils.community.listUsers.setData(undefined, (old) =>
+        old?.map((u) => (u.userId === userId ? { ...u, status: "outgoing" as const } : u)),
+      );
+      return { previous };
+    },
+    onError: (error, input, context) => {
+      if (context?.previous) utils.community.listUsers.setData(undefined, context.previous);
+    },
+    onSettled: invalidateAll,
+  });
   const cancelRequest = trpc.community.cancelRequest.useMutation({ onSuccess: invalidateAll });
   const acceptRequest = trpc.community.acceptRequest.useMutation({ onSuccess: invalidateAll });
   const declineRequest = trpc.community.declineRequest.useMutation({ onSuccess: invalidateAll });
-  const unfriend = trpc.community.unfriend.useMutation({ onSuccess: invalidateAll });
+  const unfriend = trpc.community.unfriend.useMutation({
+    onSuccess: () => {
+      setConfirmUnfriendId(null);
+      invalidateAll();
+    },
+  });
 
   const filteredUsers = (users ?? []).filter((u) => u.username.toLowerCase().includes(query.trim().toLowerCase()));
 
@@ -132,22 +156,44 @@ export default function CommunityPage() {
           {friends?.length === 0 && (
             <p className="text-sm text-muted px-1">No friends yet — send a request from Everyone.</p>
           )}
-          {friends?.map((f) => (
-            <div
-              key={f.userId}
-              className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3"
-            >
-              <p className="font-medium truncate">{f.username}</p>
-              <div className="flex gap-2 shrink-0">
-                <Button variant="secondary" onClick={() => openFriendProfile({ userId: f.userId, username: f.username })}>
-                  Profile
-                </Button>
-                <Button variant="ghost" onClick={() => unfriend.mutate({ userId: f.userId })} disabled={unfriend.isPending}>
-                  Remove
-                </Button>
+          {friends?.map((f) =>
+            confirmUnfriendId === f.userId ? (
+              <div
+                key={f.userId}
+                className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex flex-col gap-2"
+              >
+                <p className="text-sm">Remove {f.username} as a friend?</p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="primary"
+                    className="bg-red-600 text-white hover:brightness-110"
+                    onClick={() => unfriend.mutate({ userId: f.userId })}
+                    disabled={unfriend.isPending}
+                  >
+                    {unfriend.isPending ? "Removing…" : "Confirm"}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setConfirmUnfriendId(null)}>
+                    Cancel
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div
+                key={f.userId}
+                className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3"
+              >
+                <p className="font-medium truncate">{f.username}</p>
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="secondary" onClick={() => openFriendProfile({ userId: f.userId, username: f.username })}>
+                    Profile
+                  </Button>
+                  <Button variant="ghost" onClick={() => setConfirmUnfriendId(f.userId)}>
+                    Remove
+                  </Button>
+                </div>
+              </div>
+            ),
+          )}
         </div>
       )}
 
@@ -199,6 +245,8 @@ export default function CommunityPage() {
           </section>
         </div>
       )}
+
+      {tab === "chat" && <ChatPanel />}
     </main>
   );
 }

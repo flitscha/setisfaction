@@ -27,26 +27,50 @@ export default function TodayPage() {
   const [showPicker, setShowPicker] = useState(false);
   const [activeExercise, setActiveExercise] = useState<PickableExercise | null>(null);
   const [editingSet, setEditingSet] = useState<EditingSet | null>(null);
-  const [prSetIds, setPrSetIds] = useState<Set<string>>(new Set());
-
-  function markPr(setId: string, prFields: string[]) {
-    if (prFields.length === 0) return;
-    setPrSetIds((prev) => new Set(prev).add(setId));
-  }
+  const dayRangeKey = { dayStart: start, dayEnd: end };
 
   const createSet = trpc.set.create.useMutation({
-    onSuccess: async ({ set, prFields }) => {
-      await utils.set.listByDay.invalidate();
+    // Shows the new set in its card immediately instead of waiting on the
+    // round trip — the connection to Supabase can be slow enough that the
+    // wait is noticeable mid-workout. isPr is unknown until the server
+    // confirms, so the optimistic entry just shows no star; the real list
+    // (with the correct star) replaces it moments later regardless of
+    // whether this succeeds.
+    onMutate: async (input) => {
+      if (!activeExercise) return;
+      await utils.set.listByDay.cancel(dayRangeKey);
+      const previous = utils.set.listByDay.getData(dayRangeKey);
+      utils.set.listByDay.setData(dayRangeKey, (old) => [
+        ...(old ?? []),
+        {
+          id: `optimistic-${crypto.randomUUID()}`,
+          exerciseId: activeExercise.id,
+          exerciseName: activeExercise.name,
+          tracksReps: activeExercise.tracksReps,
+          tracksTime: activeExercise.tracksTime,
+          tracksWeight: activeExercise.tracksWeight,
+          performedAt: input.performedAt ?? new Date(),
+          reps: input.reps ?? null,
+          timeSeconds: input.timeSeconds ?? null,
+          weightKg: input.weightKg ?? null,
+          isPr: false,
+        },
+      ]);
+      return { previous };
+    },
+    onError: (error, input, context) => {
+      if (context?.previous) utils.set.listByDay.setData(dayRangeKey, context.previous);
+    },
+    onSuccess: async () => {
       await utils.stats.aggregates.invalidate();
-      markPr(set.id, prFields);
       setActiveExercise(null);
     },
+    onSettled: () => utils.set.listByDay.invalidate(),
   });
 
   const updateSet = trpc.set.update.useMutation({
-    onSuccess: async ({ set, prFields }) => {
+    onSuccess: async () => {
       await utils.set.listByDay.invalidate();
-      markPr(set.id, prFields);
       setEditingSet(null);
     },
   });
@@ -169,7 +193,6 @@ export default function TodayPage() {
               key={group.exerciseId}
               exerciseName={group.exerciseName}
               sets={group.sets}
-              prSetIds={prSetIds}
               onAddSet={
                 isReadOnly
                   ? undefined

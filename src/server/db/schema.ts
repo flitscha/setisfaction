@@ -117,6 +117,20 @@ export const friendships = pgTable(
   ],
 );
 
+// A global chat visible to every registered user. Only the most recent 100
+// rows are kept — see chat.send in community's chat router — so this never
+// grows into something that needs its own retention/archival strategy.
+export const chatMessages = pgTable(
+  "chat_messages",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index("chat_messages_created_at_idx").on(table.createdAt)],
+);
+
 export const sets = pgTable(
   "sets",
   {

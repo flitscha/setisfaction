@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, gte, isNull, lt, ne, or, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { getPrFields, type PreviousBest } from "@/lib/pr";
@@ -132,10 +132,17 @@ export const setRouter = router({
     .query(({ ctx, input }) => getSetsByExercise(ctx.viewUserId, input.exerciseId)),
 
   // Named by day range rather than "today" since it's also used to view past days.
+  //
+  // `isPr` is computed here (not just returned from create/update) so it
+  // survives a reload — it used to live only in the Today page's local React
+  // state, reset to nothing the moment the page remounted. It's derived per
+  // row against a running best that starts at the all-time max from before
+  // this day and advances through the day's own sets in order, so two sets
+  // logged today can both correctly be PRs if each beats the one before it.
   listByDay: readProcedure
     .input(z.object({ dayStart: z.date(), dayEnd: z.date() }))
-    .query(({ ctx, input }) =>
-      db
+    .query(async ({ ctx, input }) => {
+      const rows = await db
         .select({
           id: sets.id,
           exerciseId: sets.exerciseId,
@@ -157,6 +164,41 @@ export const setRouter = router({
             lt(sets.performedAt, input.dayEnd),
           ),
         )
-        .orderBy(asc(sets.performedAt)),
-    ),
+        .orderBy(asc(sets.performedAt));
+
+      if (rows.length === 0) return [];
+
+      const exerciseIds = [...new Set(rows.map((r) => r.exerciseId))];
+      const baselines = await db
+        .select({
+          exerciseId: sets.exerciseId,
+          maxReps: sql<number | null>`max(${sets.reps})`,
+          maxTimeSeconds: sql<number | null>`max(${sets.timeSeconds})`,
+          maxWeightKg: sql<number | null>`max(${sets.weightKg})`,
+        })
+        .from(sets)
+        .where(
+          and(eq(sets.userId, ctx.viewUserId), inArray(sets.exerciseId, exerciseIds), lt(sets.performedAt, input.dayStart)),
+        )
+        .groupBy(sets.exerciseId);
+
+      const runningBest = new Map<string, PreviousBest>(
+        baselines.map((b) => [b.exerciseId, { maxReps: b.maxReps, maxTimeSeconds: b.maxTimeSeconds, maxWeightKg: b.maxWeightKg }]),
+      );
+
+      return rows.map((row) => {
+        const best = runningBest.get(row.exerciseId) ?? { maxReps: null, maxTimeSeconds: null, maxWeightKg: null };
+        const prFields = getPrFields(
+          { reps: row.reps ?? undefined, timeSeconds: row.timeSeconds ?? undefined, weightKg: row.weightKg ?? undefined },
+          best,
+        );
+        runningBest.set(row.exerciseId, {
+          maxReps: row.reps !== null ? Math.max(best.maxReps ?? row.reps, row.reps) : best.maxReps,
+          maxTimeSeconds:
+            row.timeSeconds !== null ? Math.max(best.maxTimeSeconds ?? row.timeSeconds, row.timeSeconds) : best.maxTimeSeconds,
+          maxWeightKg: row.weightKg !== null ? Math.max(best.maxWeightKg ?? row.weightKg, row.weightKg) : best.maxWeightKg,
+        });
+        return { ...row, isPr: prFields.length > 0 };
+      });
+    }),
 });
