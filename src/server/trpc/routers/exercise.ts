@@ -80,24 +80,30 @@ async function getForkedAwayStandardIds(userId: string): Promise<string[]> {
   return rows.map((r) => r.forkedFromId).filter((id): id is string => id !== null);
 }
 
+// The exercises a given user sees: their own plus every standard one, minus
+// any standard exercise they've personally forked away (see updateStandard).
+// Exported so community.ts can build the same list for a friend's profile,
+// after checking friendship — this has no access control of its own.
+export async function listVisibleExercises(userId: string) {
+  const forkedAwayIds = await getForkedAwayStandardIds(userId);
+
+  const rows = await db
+    .select()
+    .from(exercises)
+    .where(
+      and(
+        or(eq(exercises.userId, userId), isNull(exercises.userId)),
+        forkedAwayIds.length > 0 ? notInArray(exercises.id, forkedAwayIds) : undefined,
+      ),
+    )
+    .orderBy(exercises.name);
+
+  const groupIdsByExercise = await getGroupIdsByExercise(rows.map((r) => r.id), userId);
+  return rows.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
+}
+
 export const exerciseRouter = router({
-  list: readProcedure.query(async ({ ctx }) => {
-    const forkedAwayIds = await getForkedAwayStandardIds(ctx.viewUserId);
-
-    const rows = await db
-      .select()
-      .from(exercises)
-      .where(
-        and(
-          or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)),
-          forkedAwayIds.length > 0 ? notInArray(exercises.id, forkedAwayIds) : undefined,
-        ),
-      )
-      .orderBy(exercises.name);
-
-    const groupIdsByExercise = await getGroupIdsByExercise(rows.map((r) => r.id), ctx.viewUserId);
-    return rows.map((row) => ({ ...row, groupIds: groupIdsByExercise.get(row.id) ?? [] }));
-  }),
+  list: readProcedure.query(({ ctx }) => listVisibleExercises(ctx.viewUserId)),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
     const forkedAwayIds = await getForkedAwayStandardIds(ctx.viewUserId);

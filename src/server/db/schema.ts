@@ -85,6 +85,38 @@ export const exerciseGroupMembers = pgTable(
   ],
 );
 
+// A pending friend request from one user to another. Deleted once accepted
+// (replaced by a `friendships` row) or declined/cancelled.
+export const friendRequests = pgTable(
+  "friend_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    fromUserId: uuid("from_user_id").notNull(),
+    toUserId: uuid("to_user_id").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("friend_requests_from_to_idx").on(table.fromUserId, table.toUserId),
+    index("friend_requests_to_user_id_idx").on(table.toUserId),
+  ],
+);
+
+// An accepted friendship. Always stored with userIdA < userIdB (by plain
+// string comparison, enforced in application code, not a DB constraint) so a
+// pair is never represented by two rows or an ambiguous direction.
+export const friendships = pgTable(
+  "friendships",
+  {
+    userIdA: uuid("user_id_a").notNull(),
+    userIdB: uuid("user_id_b").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.userIdA, table.userIdB] }),
+    index("friendships_user_id_b_idx").on(table.userIdB),
+  ],
+);
+
 export const sets = pgTable(
   "sets",
   {
