@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, eq, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { emailToUsername } from "@/lib/username";
+import { resolveUsernames } from "@/server/db/usernames";
 import { exerciseGroups, friendRequests, friendships } from "@/server/db/schema";
 import { protectedProcedure, router, writeProcedure } from "../trpc";
 import { getAggregatesForUser } from "./stats";
@@ -60,11 +60,13 @@ export const communityRouter = router({
     const incomingIds = new Set(incoming.map((r) => r.fromUserId));
     const friendIds = new Set(friendRows.map((r) => (r.userIdA === ctx.userId ? r.userIdB : r.userIdA)));
 
+    const usernameByUserId = await resolveUsernames(authUsers);
+
     return authUsers
-      .filter((row) => !HIDDEN_FROM_DIRECTORY.has(emailToUsername(row.email)))
+      .filter((row) => !HIDDEN_FROM_DIRECTORY.has(usernameByUserId.get(row.id) ?? ""))
       .map((row) => ({
         userId: row.id,
-        username: emailToUsername(row.email),
+        username: usernameByUserId.get(row.id) ?? "?",
         status: friendIds.has(row.id)
           ? ("friends" as const)
           : outgoingIds.has(row.id)
@@ -87,7 +89,8 @@ export const communityRouter = router({
       sql`select id, email, created_at from auth.users where id in (${sql.join(friendIds.map((id) => sql`${id}`), sql`, `)})`,
     )) as unknown as AuthUserRow[];
 
-    return authUsers.map((row) => ({ userId: row.id, username: emailToUsername(row.email) }));
+    const usernameByUserId = await resolveUsernames(authUsers);
+    return authUsers.map((row) => ({ userId: row.id, username: usernameByUserId.get(row.id) ?? "?" }));
   }),
 
   // For the community entry point's badge — how many requests are waiting on
@@ -105,7 +108,7 @@ export const communityRouter = router({
     const authUsers = (await db.execute(
       sql`select id, email, created_at from auth.users where id in (${sql.join(fromIds.map((id) => sql`${id}`), sql`, `)})`,
     )) as unknown as AuthUserRow[];
-    const usernameById = new Map(authUsers.map((u) => [u.id, emailToUsername(u.email)]));
+    const usernameById = await resolveUsernames(authUsers);
 
     return rows.map((row) => ({ fromUserId: row.fromUserId, username: usernameById.get(row.fromUserId) ?? "?" }));
   }),
@@ -118,7 +121,7 @@ export const communityRouter = router({
     const authUsers = (await db.execute(
       sql`select id, email, created_at from auth.users where id in (${sql.join(toIds.map((id) => sql`${id}`), sql`, `)})`,
     )) as unknown as AuthUserRow[];
-    const usernameById = new Map(authUsers.map((u) => [u.id, emailToUsername(u.email)]));
+    const usernameById = await resolveUsernames(authUsers);
 
     return rows.map((row) => ({ toUserId: row.toUserId, username: usernameById.get(row.toUserId) ?? "?" }));
   }),

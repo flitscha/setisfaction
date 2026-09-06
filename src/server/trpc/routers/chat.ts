@@ -1,7 +1,7 @@
 import { desc, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { emailToUsername } from "@/lib/username";
+import { resolveUsernames } from "@/server/db/usernames";
 import { chatMessages } from "@/server/db/schema";
 import { protectedProcedure, router, writeProcedure } from "../trpc";
 
@@ -24,7 +24,7 @@ export const chatRouter = router({
     const authUsers = (await db.execute(
       sql`select id, email from auth.users where id in (${sql.join(userIds.map((id) => sql`${id}`), sql`, `)})`,
     )) as unknown as AuthUserRow[];
-    const usernameById = new Map(authUsers.map((u) => [u.id, emailToUsername(u.email)]));
+    const usernameById = await resolveUsernames(authUsers);
 
     return rows.map((row) => ({ ...row, username: usernameById.get(row.userId) ?? "?" }));
   }),

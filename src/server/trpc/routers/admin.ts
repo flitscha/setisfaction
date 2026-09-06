@@ -2,8 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { emailToUsername } from "@/lib/username";
 import { db } from "@/server/db";
+import { resolveUsernames } from "@/server/db/usernames";
 import { exerciseGroups, exercises, profiles, sets } from "@/server/db/schema";
 import { adminProcedure, protectedProcedure, router } from "../trpc";
 
@@ -27,9 +27,11 @@ export const adminRouter = router({
     const setCounts = await db.select({ userId: sets.userId, setCount: count() }).from(sets).groupBy(sets.userId);
     const setCountByUserId = new Map(setCounts.map((row) => [row.userId, row.setCount]));
 
+    const usernameByUserId = await resolveUsernames(authUsers);
+
     return authUsers.map((row) => ({
       userId: row.id,
-      username: emailToUsername(row.email),
+      username: usernameByUserId.get(row.id) ?? "?",
       createdAt: new Date(row.created_at),
       isAdmin: isAdminByUserId.get(row.id) ?? false,
       totalSets: setCountByUserId.get(row.id) ?? 0,
@@ -49,9 +51,11 @@ export const adminRouter = router({
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
+    const usernameByUserId = await resolveUsernames([authUser]);
+
     return {
       userId: authUser.id,
-      username: emailToUsername(authUser.email),
+      username: usernameByUserId.get(authUser.id) ?? "?",
       createdAt: new Date(authUser.created_at),
     };
   }),
