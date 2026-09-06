@@ -4,6 +4,7 @@ import "./globals.css";
 import { TRPCProvider } from "@/lib/trpc/provider";
 import { TopBar } from "@/components/layout/top-bar";
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { FriendProfileModal } from "@/components/community/friend-profile-modal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +43,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <TopBar />
           <div className="flex-1 flex flex-col pb-20">{children}</div>
           <BottomNav />
+          <FriendProfileModal />
         </TRPCProvider>
       </body>
     </html>

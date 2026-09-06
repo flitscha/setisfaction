@@ -3,7 +3,7 @@ import { and, eq, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
 import { emailToUsername } from "@/lib/username";
-import { friendRequests, friendships } from "@/server/db/schema";
+import { exerciseGroups, friendRequests, friendships } from "@/server/db/schema";
 import { protectedProcedure, router, writeProcedure } from "../trpc";
 import { getAggregatesForUser } from "./stats";
 import { listVisibleExercises } from "./exercise";
@@ -197,6 +197,11 @@ export const communityRouter = router({
   friendExercises: protectedProcedure.input(z.object({ userId: z.string().uuid() })).query(async ({ ctx, input }) => {
     await assertFriends(ctx.userId, input.userId);
     return listVisibleExercises(input.userId);
+  }),
+
+  friendGroups: protectedProcedure.input(z.object({ userId: z.string().uuid() })).query(async ({ ctx, input }) => {
+    await assertFriends(ctx.userId, input.userId);
+    return db.select().from(exerciseGroups).where(eq(exerciseGroups.userId, input.userId)).orderBy(exerciseGroups.name);
   }),
 
   friendExerciseHistory: protectedProcedure

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, LogOut, ShieldCheck, X } from "lucide-react";
+import { ArrowLeft, LogOut, Mail, ShieldCheck, X } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { isPublicAuthPath } from "@/lib/auth-pages";
 import { trpc } from "@/lib/trpc/client";
@@ -15,6 +15,9 @@ export function TopBar() {
   const viewAsUser = useViewAsUser();
   const { data: isAdmin } = trpc.admin.isAdmin.useQuery(undefined, { enabled: !isPublic });
   const { data: me } = trpc.auth.me.useQuery(undefined, { enabled: !isPublic && !viewAsUser });
+  const { data: requestCount } = trpc.community.incomingRequestCount.useQuery(undefined, {
+    enabled: !isPublic && !viewAsUser,
+  });
 
   if (isPublic) {
     return null;
@@ -42,6 +45,14 @@ export function TopBar() {
       <p className="font-semibold">Setisfaction</p>
       <div className="flex items-center gap-3">
         {me && <span className="text-sm text-muted">{me.username}</span>}
+        <Link href="/community" aria-label="Friends" className="relative text-muted hover:text-foreground">
+          <Mail size={20} />
+          {!!requestCount && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-red-600 text-white text-[10px] leading-4 text-center font-medium">
+              {requestCount}
+            </span>
+          )}
+        </Link>
         {isAdmin && (
           <Link href="/admin" aria-label="Admin" className="text-muted hover:text-foreground">
             <ShieldCheck size={20} />
