@@ -35,6 +35,7 @@ export function SetForm({
   );
   const [weightKg, setWeightKg] = useState(initialValues?.weightKg !== undefined ? String(initialValues.weightKg) : "");
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmingRestart, setConfirmingRestart] = useState(false);
 
   // Only guards freshly-entered, not-yet-saved values (create flow) — cancelling
   // an edit never loses anything, the previous values are still safely stored.
@@ -88,8 +89,12 @@ export function SetForm({
             className={inputClass}
           />
           <div className="flex items-center gap-2 flex-wrap">
-            <Stopwatch onStop={(seconds) => setTimeSeconds(String(seconds))} hasExistingValue={timeSeconds !== ""} />
-            {timeSeconds !== "" && (
+            <Stopwatch
+              onStop={(seconds) => setTimeSeconds(String(seconds))}
+              hasExistingValue={timeSeconds !== ""}
+              onConfirmingRestartChange={setConfirmingRestart}
+            />
+            {timeSeconds !== "" && !confirmingRestart && (
               <div className="flex items-center gap-2 ml-auto">
                 <button
                   type="button"

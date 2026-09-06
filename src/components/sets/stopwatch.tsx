@@ -6,16 +6,25 @@ import { Button } from "@/components/ui/button";
 export function Stopwatch({
   onStop,
   hasExistingValue,
+  onConfirmingRestartChange,
 }: {
   onStop: (seconds: number) => void;
   // True when a time is already entered — starting fresh would silently
   // overwrite it once stopped, so confirm first.
   hasExistingValue?: boolean;
+  // Lets the parent hide other controls (e.g. the ±1s buttons) while the
+  // restart confirmation is showing, so it doesn't compete for space.
+  onConfirmingRestartChange?: (confirming: boolean) => void;
 }) {
   const [isRunning, setIsRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
-  const [confirmRestart, setConfirmRestart] = useState(false);
+  const [confirmRestart, setConfirmRestartState] = useState(false);
   const startRef = useRef<number | null>(null);
+
+  function setConfirmRestart(confirming: boolean) {
+    setConfirmRestartState(confirming);
+    onConfirmingRestartChange?.(confirming);
+  }
 
   useEffect(() => {
     if (!isRunning) return;
@@ -84,8 +93,8 @@ export function Stopwatch({
 
   if (confirmRestart) {
     return (
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-sm text-muted">Restart, replacing the current time?</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted whitespace-nowrap">Restart timer?</span>
         <Button
           type="button"
           variant="secondary"
