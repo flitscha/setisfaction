@@ -55,6 +55,17 @@ async function getPreviousBest(exerciseId: string, userId: string, excludeSetId?
   return result;
 }
 
+// Exported so community.ts can build the same per-exercise history for a
+// friend's profile, after checking friendship — this has no access control
+// of its own.
+export function getSetsByExercise(userId: string, exerciseId: string) {
+  return db
+    .select()
+    .from(sets)
+    .where(and(eq(sets.userId, userId), eq(sets.exerciseId, exerciseId)))
+    .orderBy(asc(sets.performedAt));
+}
+
 export const setRouter = router({
   create: writeProcedure.input(createSetInput).mutation(async ({ ctx, input }) => {
     await assertOwnsExercise(input.exerciseId, ctx.userId);
@@ -118,13 +129,7 @@ export const setRouter = router({
 
   listByExercise: readProcedure
     .input(z.object({ exerciseId: z.string().uuid() }))
-    .query(({ ctx, input }) =>
-      db
-        .select()
-        .from(sets)
-        .where(and(eq(sets.userId, ctx.viewUserId), eq(sets.exerciseId, input.exerciseId)))
-        .orderBy(asc(sets.performedAt)),
-    ),
+    .query(({ ctx, input }) => getSetsByExercise(ctx.viewUserId, input.exerciseId)),
 
   // Named by day range rather than "today" since it's also used to view past days.
   listByDay: readProcedure

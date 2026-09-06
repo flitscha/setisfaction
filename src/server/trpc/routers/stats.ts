@@ -4,6 +4,39 @@ import { db } from "@/server/db";
 import { exerciseGroupMembers, exerciseGroups, exercises, sets } from "@/server/db/schema";
 import { readProcedure, router } from "../trpc";
 
+// Exported so community.ts can build the same summary for a friend's profile,
+// after checking friendship — this has no access control of its own.
+export async function getAggregatesForUser(userId: string) {
+  const [totals] = await db
+    .select({
+      totalSets: count(),
+      totalTrainingDays: sql<number>`count(distinct date_trunc('day', ${sets.performedAt}))`,
+    })
+    .from(sets)
+    .where(eq(sets.userId, userId));
+
+  const setCount = count(sets.id);
+  const exerciseSetCounts = await db
+    .select({
+      exerciseId: exercises.id,
+      name: exercises.name,
+      setCount,
+    })
+    .from(exercises)
+    .innerJoin(sets, eq(sets.exerciseId, exercises.id))
+    // sets.userId, not exercises.userId — a standard exercise's sets are
+    // this user's own, even though the exercise itself isn't user-owned.
+    .where(eq(sets.userId, userId))
+    .groupBy(exercises.id)
+    .orderBy(desc(setCount));
+
+  return {
+    totalSets: totals.totalSets,
+    totalTrainingDays: Number(totals.totalTrainingDays),
+    exerciseSetCounts,
+  };
+}
+
 export const statsRouter = router({
   // Returns raw timestamps; the client buckets them into local calendar days
   // for the heatmap so day boundaries match the user's own timezone.
@@ -11,36 +44,7 @@ export const statsRouter = router({
     db.select({ performedAt: sets.performedAt }).from(sets).where(eq(sets.userId, ctx.viewUserId)),
   ),
 
-  aggregates: readProcedure.query(async ({ ctx }) => {
-    const [totals] = await db
-      .select({
-        totalSets: count(),
-        totalTrainingDays: sql<number>`count(distinct date_trunc('day', ${sets.performedAt}))`,
-      })
-      .from(sets)
-      .where(eq(sets.userId, ctx.viewUserId));
-
-    const setCount = count(sets.id);
-    const exerciseSetCounts = await db
-      .select({
-        exerciseId: exercises.id,
-        name: exercises.name,
-        setCount,
-      })
-      .from(exercises)
-      .innerJoin(sets, eq(sets.exerciseId, exercises.id))
-      // sets.userId, not exercises.userId — a standard exercise's sets are
-      // this user's own, even though the exercise itself isn't user-owned.
-      .where(eq(sets.userId, ctx.viewUserId))
-      .groupBy(exercises.id)
-      .orderBy(desc(setCount));
-
-    return {
-      totalSets: totals.totalSets,
-      totalTrainingDays: Number(totals.totalTrainingDays),
-      exerciseSetCounts,
-    };
-  }),
+  aggregates: readProcedure.query(({ ctx }) => getAggregatesForUser(ctx.viewUserId)),
 
   // One row per group the user has defined, even if it has zero sets — that's
   // the signal for "did I skip leg day" the overview is meant to surface.
