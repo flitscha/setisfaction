@@ -14,6 +14,7 @@ export default function GroupsPage() {
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const createGroup = trpc.group.create.useMutation({
     onSuccess: async () => {
@@ -31,6 +32,7 @@ export default function GroupsPage() {
 
   const deleteGroup = trpc.group.delete.useMutation({
     onSuccess: async () => {
+      setConfirmDeleteId(null);
       await utils.group.list.invalidate();
       await utils.exercise.list.invalidate();
     },
@@ -87,6 +89,21 @@ export default function GroupsPage() {
                   Cancel
                 </Button>
               </>
+            ) : confirmDeleteId === group.id ? (
+              <>
+                <p className="flex-1 text-sm">Delete &quot;{group.name}&quot;?</p>
+                <Button
+                  variant="primary"
+                  className="bg-red-600 text-white hover:brightness-110"
+                  onClick={() => deleteGroup.mutate({ id: group.id })}
+                  disabled={deleteGroup.isPending}
+                >
+                  {deleteGroup.isPending ? "Deleting…" : "Confirm"}
+                </Button>
+                <Button variant="ghost" onClick={() => setConfirmDeleteId(null)}>
+                  Cancel
+                </Button>
+              </>
             ) : (
               <>
                 <p className="flex-1">{group.name}</p>
@@ -101,7 +118,7 @@ export default function GroupsPage() {
                     >
                       Rename
                     </Button>
-                    <Button variant="danger" onClick={() => deleteGroup.mutate({ id: group.id })}>
+                    <Button variant="danger" onClick={() => setConfirmDeleteId(group.id)}>
                       Delete
                     </Button>
                   </>

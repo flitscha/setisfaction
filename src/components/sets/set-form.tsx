@@ -35,6 +35,7 @@ export function SetForm({
   );
   const [weightKg, setWeightKg] = useState(initialValues?.weightKg !== undefined ? String(initialValues.weightKg) : "");
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmingRestart, setConfirmingRestart] = useState(false);
 
   // Only guards freshly-entered, not-yet-saved values (create flow) — cancelling
@@ -142,6 +143,22 @@ export function SetForm({
             Keep editing
           </Button>
         </div>
+      ) : confirmDelete ? (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted">Delete this set?</span>
+          <Button
+            type="button"
+            variant="primary"
+            className="bg-red-600 text-white hover:brightness-110 ml-auto"
+            onClick={onDelete}
+            disabled={isDeleting}
+          >
+            {isDeleting ? "Deleting…" : "Confirm"}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>
+            Cancel
+          </Button>
+        </div>
       ) : (
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={isSubmitting}>
@@ -151,8 +168,8 @@ export function SetForm({
             Cancel
           </Button>
           {onDelete && (
-            <Button type="button" variant="danger" onClick={onDelete} disabled={isDeleting} className="ml-auto">
-              {isDeleting ? "Deleting…" : "Delete"}
+            <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)} className="ml-auto">
+              Delete
             </Button>
           )}
         </div>
