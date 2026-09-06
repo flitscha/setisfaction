@@ -19,12 +19,32 @@ function formatTimestamp(date: Date): string {
 export function ChatPanel() {
   const [body, setBody] = useState("");
   const utils = trpc.useUtils();
+  const { data: me } = trpc.auth.me.useQuery();
   const { data: messages } = trpc.chat.list.useQuery(undefined, { refetchInterval: POLL_INTERVAL_MS });
   const send = trpc.chat.send.useMutation({
-    onSuccess: () => {
+    // Shows the message right away instead of waiting on the round trip;
+    // the next poll (or the invalidate below) replaces it with the real row.
+    onMutate: async ({ body: sentBody }) => {
+      await utils.chat.list.cancel();
+      const previous = utils.chat.list.getData();
+      utils.chat.list.setData(undefined, (old) => [
+        ...(old ?? []),
+        {
+          id: `optimistic-${crypto.randomUUID()}`,
+          userId: "optimistic",
+          username: me?.username ?? "You",
+          body: sentBody,
+          createdAt: new Date(),
+        },
+      ]);
       setBody("");
-      utils.chat.list.invalidate();
+      return { previous, sentBody };
     },
+    onError: (error, input, context) => {
+      if (context?.previous) utils.chat.list.setData(undefined, context.previous);
+      if (context?.sentBody) setBody(context.sentBody);
+    },
+    onSettled: () => utils.chat.list.invalidate(),
   });
   const bottomRef = useRef<HTMLDivElement>(null);
 

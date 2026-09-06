@@ -33,7 +33,24 @@ export default function CommunityPage() {
     utils.community.incomingRequestCount.invalidate();
   }
 
-  const sendRequest = trpc.community.sendRequest.useMutation({ onSuccess: invalidateAll });
+  const sendRequest = trpc.community.sendRequest.useMutation({
+    // Flips the button to "Cancel request" the instant it's tapped instead
+    // of waiting on the round trip — the rare case where this was actually
+    // an auto-accept (the other side had already sent a request) briefly
+    // shows "outgoing" until the invalidate below corrects it to "friends".
+    onMutate: async ({ userId }) => {
+      await utils.community.listUsers.cancel();
+      const previous = utils.community.listUsers.getData();
+      utils.community.listUsers.setData(undefined, (old) =>
+        old?.map((u) => (u.userId === userId ? { ...u, status: "outgoing" as const } : u)),
+      );
+      return { previous };
+    },
+    onError: (error, input, context) => {
+      if (context?.previous) utils.community.listUsers.setData(undefined, context.previous);
+    },
+    onSettled: invalidateAll,
+  });
   const cancelRequest = trpc.community.cancelRequest.useMutation({ onSuccess: invalidateAll });
   const acceptRequest = trpc.community.acceptRequest.useMutation({ onSuccess: invalidateAll });
   const declineRequest = trpc.community.declineRequest.useMutation({ onSuccess: invalidateAll });
