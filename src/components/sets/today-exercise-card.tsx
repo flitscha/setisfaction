@@ -3,19 +3,17 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatSetValue } from "@/lib/format-set";
 
-type TodaySet = { id: string; reps: number | null; timeSeconds: number | null; weightKg: number | null };
+type TodaySet = { id: string; reps: number | null; timeSeconds: number | null; weightKg: number | null; isPr: boolean };
 
 export function TodayExerciseCard({
   exerciseName,
   sets,
-  prSetIds,
   onAddSet,
   onEditSet,
   expandedContent,
 }: {
   exerciseName: string;
   sets: TodaySet[];
-  prSetIds: Set<string>;
   // Omitted in read-only mode (admin viewing another user) — the card then
   // renders with no interactive controls.
   onAddSet?: () => void;
@@ -43,7 +41,7 @@ export function TodayExerciseCard({
                 className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10 min-h-11"
               >
                 {formatSetValue(set)}
-                {prSetIds.has(set.id) && <Star size={12} className="fill-accent text-accent" />}
+                {set.isPr && <Star size={12} className="fill-accent text-accent" />}
               </button>
             ) : (
               <div
@@ -51,7 +49,7 @@ export function TodayExerciseCard({
                 className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm"
               >
                 {formatSetValue(set)}
-                {prSetIds.has(set.id) && <Star size={12} className="fill-accent text-accent" />}
+                {set.isPr && <Star size={12} className="fill-accent text-accent" />}
               </div>
             ),
           )}

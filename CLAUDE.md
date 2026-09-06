@@ -19,7 +19,7 @@ Minimalist, mobile-first calisthenics workout-logging PWA. Log sets fast during 
 - `sets`: id, user_id (denormalized), exercise_id (FK, cascade delete), performed_at (its date part *is* the "training day" — there is no separate Workout/session entity), reps / time_seconds / weight_kg (all optional, shown conditionally based on the exercise's tracked fields), created_at.
 - `exercise_groups`: id, user_id, name (case-insensitive unique per user) — user-defined groupings (e.g. Push/Pull/Legs) purely for organizing and aggregate stats.
 - `exercise_group_members`: (exercise_id, group_id) composite PK — many-to-many; an exercise can belong to any number of groups or none.
-- PR badges are computed at request time via `max()` over set history for the relevant field — no separate PR table, not retroactively recomputed if history is later edited.
+- PR badges are computed at request time via `max()` over set history for the relevant field — no separate PR table, not retroactively recomputed if history is later edited. `set.listByDay` computes each returned set's `isPr` itself (a running best per exercise, seeded from the all-time max *before* that day and advanced through the day's own sets in order, so two sets logged the same day can both correctly be PRs) — this used to live only in the Today page's local React state, reset to nothing on every reload/remount since nothing about "was this a PR" was ever persisted or re-derivable from the list itself.
 - Group-level stats use set *count* per day, not a value-based chart, since a group can mix exercises with incompatible units (reps/seconds/kg).
 - `scripts/seed.mjs` (`npm run seed [username]`) ensures the shared catalog has the full curated list (idempotent — safe to run for multiple users, reuses existing rows instead of duplicating them), then replaces that one user's own groups/sets with a realistic dev history against it — for local testing only, never run against real data you want to keep.
 
@@ -73,5 +73,6 @@ Registration (`/register`, `auth.register` tRPC mutation) creates the user via t
 ## Conventions
 
 - All code, identifiers, and comments in English.
+- The most latency-sensitive mutations (logging a set, sending a friend request, sending a chat message) use tRPC/React Query's optimistic-update pattern (`onMutate` writes the expected result straight into the query cache, `onError` rolls it back, `onSettled`/`onSuccess` invalidates to reconcile with the server) rather than waiting on the round trip — Supabase/Vercel's free-tier connection can be slow enough for that wait to be noticeable. This is not offline support (still online-only, per Architecture above): it only smooths over normal-case latency, and a genuine failure still surfaces as a rollback plus an error.
 - Work in milestones; commit (and push) at each one once it's verified working.
 - Full historical requirements/planning discussion isn't kept here — this file only tracks durable architecture decisions and conventions, not a changelog.
