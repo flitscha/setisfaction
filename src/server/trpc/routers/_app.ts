@@ -1,6 +1,7 @@
 import { router } from "../trpc";
 import { adminRouter } from "./admin";
 import { authRouter } from "./auth";
+import { chatRouter } from "./chat";
 import { communityRouter } from "./community";
 import { exerciseRouter } from "./exercise";
 import { groupRouter } from "./group";
@@ -12,6 +13,7 @@ export const appRouter = router({
   health: healthRouter,
   auth: authRouter,
   admin: adminRouter,
+  chat: chatRouter,
   community: communityRouter,
   exercise: exerciseRouter,
   group: groupRouter,
