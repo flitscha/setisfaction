@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { describeAuthEmailError } from "@/lib/supabase/errors";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
@@ -57,7 +58,7 @@ export default function RegisterPage() {
     setIsSubmitting(false);
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(describeAuthEmailError(signUpError));
       return;
     }
 

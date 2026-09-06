@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { describeAuthEmailError } from "@/lib/supabase/errors";
 import { Button } from "@/components/ui/button";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
 
@@ -25,12 +26,18 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     const supabase = createClient();
-    // Always resolves the same way regardless of whether the email is on
-    // file — Supabase doesn't reveal that either way, so there's nothing
-    // useful to branch on here.
-    await supabase.auth.resetPasswordForEmail(email);
-
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
     setIsSubmitting(false);
+
+    // Supabase deliberately doesn't reveal whether the email is on file —
+    // any error other than a genuine rate limit is treated as success so
+    // that stays true here too; the rate limit itself isn't an enumeration
+    // risk, so it's fine (and more honest) to actually show that one.
+    if (resetError?.code === "over_email_send_rate_limit") {
+      setError(describeAuthEmailError(resetError));
+      return;
+    }
+
     setStep("reset");
   }
 

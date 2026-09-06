@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { describeAuthEmailError } from "@/lib/supabase/errors";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/auth/logout-button";
@@ -34,7 +35,7 @@ export default function VerifyEmailPage() {
     setIsSubmitting(false);
 
     if (updateError) {
-      setError(updateError.message);
+      setError(describeAuthEmailError(updateError));
       return;
     }
 
