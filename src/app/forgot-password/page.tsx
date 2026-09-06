@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { describeAuthEmailError } from "@/lib/supabase/errors";
@@ -10,13 +9,12 @@ import { PullUpIcon } from "@/components/icons/pull-up-icon";
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
+// The emailed link lands on /auth/callback, which recognizes Supabase's
+// PASSWORD_RECOVERY event and shows the "set a new password" form itself —
+// this page's job ends at sending that email.
 export default function ForgotPasswordPage() {
-  const router = useRouter();
-  const [step, setStep] = useState<"email" | "reset">("email");
+  const [step, setStep] = useState<"email" | "sent">("email");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -26,7 +24,9 @@ export default function ForgotPasswordPage() {
     setIsSubmitting(true);
 
     const supabase = createClient();
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/callback?flow=recovery`,
+    });
     setIsSubmitting(false);
 
     // Supabase deliberately doesn't reveal whether the email is on file —
@@ -38,38 +38,7 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    setStep("reset");
-  }
-
-  async function handleResetSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-
-    if (password !== confirmPassword) {
-      setError("Passwords don't match.");
-      return;
-    }
-
-    setIsSubmitting(true);
-    const supabase = createClient();
-
-    const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: code, type: "recovery" });
-    if (verifyError) {
-      setIsSubmitting(false);
-      setError("That code is wrong or has expired.");
-      return;
-    }
-
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setIsSubmitting(false);
-
-    if (updateError) {
-      setError(updateError.message);
-      return;
-    }
-
-    router.push("/today");
-    router.refresh();
+    setStep("sent");
   }
 
   return (
@@ -85,7 +54,7 @@ export default function ForgotPasswordPage() {
         {step === "email" ? (
           <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
             <p className="text-sm text-muted text-center">
-              Enter the email you registered with — we&apos;ll send a code to reset your password.
+              Enter the email you registered with — we&apos;ll send a link to reset your password.
             </p>
 
             <input
@@ -101,7 +70,7 @@ export default function ForgotPasswordPage() {
             {error && <p className="text-red-600 text-sm">{error}</p>}
 
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Sending…" : "Send code"}
+              {isSubmitting ? "Sending…" : "Send reset link"}
             </Button>
 
             <Link href="/login" className="text-sm text-muted text-center">
@@ -109,55 +78,10 @@ export default function ForgotPasswordPage() {
             </Link>
           </form>
         ) : (
-          <form onSubmit={handleResetSubmit} className="flex flex-col gap-4">
-            <p className="text-sm text-muted text-center">
-              Enter the code sent to <strong>{email}</strong> and your new password.
-            </p>
-
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              autoComplete="one-time-code"
-              autoFocus
-              required
-              className={inputClass}
-            />
-
-            <input
-              type="password"
-              placeholder="New password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-              minLength={6}
-              className={inputClass}
-            />
-
-            <input
-              type="password"
-              placeholder="Confirm new password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-              minLength={6}
-              className={inputClass}
-            />
-
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Resetting…" : "Reset password"}
-            </Button>
-
-            <button type="button" onClick={() => setStep("email")} className="text-sm text-muted text-center">
-              Back
-            </button>
-          </form>
+          <p className="text-sm text-muted text-center">
+            If an account exists for <strong>{email}</strong>, we sent a link to reset your password. Open it on this
+            device.
+          </p>
         )}
       </div>
     </main>

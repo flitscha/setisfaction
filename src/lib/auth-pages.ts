@@ -1,4 +1,4 @@
-const PUBLIC_AUTH_PATHS = ["/login", "/register", "/forgot-password"];
+const PUBLIC_AUTH_PATHS = ["/login", "/register", "/forgot-password", "/auth/callback"];
 
 // Pages reachable without a session — used by the proxy's redirect logic.
 export function isPublicAuthPath(pathname: string): boolean {

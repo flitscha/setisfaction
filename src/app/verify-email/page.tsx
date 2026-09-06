@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { describeAuthEmailError } from "@/lib/supabase/errors";
 import { trpc } from "@/lib/trpc/client";
@@ -14,13 +13,13 @@ const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparen
 // Forced on accounts created before real-email registration existed (see
 // proxy.ts) — a one-time detour to add a working email, so password
 // recovery becomes possible for accounts that otherwise have no way to
-// receive mail at their synthetic @setisfaction.local address.
+// receive mail at their synthetic @setisfaction.local address. Clicking the
+// emailed link lands on /auth/callback, which finishes the job and sends
+// them on to /today (at which point the proxy stops redirecting here).
 export default function VerifyEmailPage() {
-  const router = useRouter();
   const { data: me } = trpc.auth.me.useQuery();
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [step, setStep] = useState<"email" | "sent">("email");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -30,7 +29,10 @@ export default function VerifyEmailPage() {
     setIsSubmitting(true);
 
     const supabase = createClient();
-    const { error: updateError } = await supabase.auth.updateUser({ email });
+    const { error: updateError } = await supabase.auth.updateUser(
+      { email },
+      { emailRedirectTo: `${window.location.origin}/auth/callback?flow=email_change` },
+    );
 
     setIsSubmitting(false);
 
@@ -39,26 +41,7 @@ export default function VerifyEmailPage() {
       return;
     }
 
-    setStep("code");
-  }
-
-  async function handleCodeSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
-    const supabase = createClient();
-    const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: code, type: "email_change" });
-
-    setIsSubmitting(false);
-
-    if (verifyError) {
-      setError("That code is wrong or has expired.");
-      return;
-    }
-
-    router.push("/today");
-    router.refresh();
+    setStep("sent");
   }
 
   return (
@@ -92,37 +75,13 @@ export default function VerifyEmailPage() {
             {error && <p className="text-red-600 text-sm">{error}</p>}
 
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Sending…" : "Send code"}
+              {isSubmitting ? "Sending…" : "Send confirmation link"}
             </Button>
           </form>
         ) : (
-          <form onSubmit={handleCodeSubmit} className="flex flex-col gap-4">
-            <p className="text-sm text-muted text-center">
-              We sent a code to <strong>{email}</strong>.
-            </p>
-
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              autoComplete="one-time-code"
-              autoFocus
-              required
-              className={inputClass}
-            />
-
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Verifying…" : "Verify"}
-            </Button>
-
-            <button type="button" onClick={() => setStep("email")} className="text-sm text-muted text-center">
-              Back
-            </button>
-          </form>
+          <p className="text-sm text-muted text-center">
+            We sent a confirmation link to <strong>{email}</strong>. Open it on this device to finish.
+          </p>
         )}
 
         <LogoutButton className="text-sm text-muted text-center mx-auto">Log out instead</LogoutButton>

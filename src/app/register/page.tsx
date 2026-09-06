@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { describeAuthEmailError } from "@/lib/supabase/errors";
@@ -13,18 +12,14 @@ const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparen
 const USERNAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 export default function RegisterPage() {
-  const router = useRouter();
   const utils = trpc.useUtils();
-  const [step, setStep] = useState<"details" | "code">("details");
+  const [step, setStep] = useState<"details" | "sent">("details");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const completeRegistration = trpc.auth.completeRegistration.useMutation();
 
   async function handleDetailsSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,7 +47,10 @@ export default function RegisterPage() {
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username } },
+      options: {
+        data: { username },
+        emailRedirectTo: `${window.location.origin}/auth/callback?flow=signup&username=${encodeURIComponent(username)}`,
+      },
     });
 
     setIsSubmitting(false);
@@ -62,33 +60,7 @@ export default function RegisterPage() {
       return;
     }
 
-    setStep("code");
-  }
-
-  async function handleCodeSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
-    const supabase = createClient();
-    const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: code, type: "signup" });
-
-    if (verifyError) {
-      setIsSubmitting(false);
-      setError(verifyError.message);
-      return;
-    }
-
-    try {
-      await completeRegistration.mutateAsync({ username });
-    } catch (err) {
-      setIsSubmitting(false);
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-      return;
-    }
-
-    router.push("/today");
-    router.refresh();
+    setStep("sent");
   }
 
   return (
@@ -156,33 +128,10 @@ export default function RegisterPage() {
             </Link>
           </form>
         ) : (
-          <form onSubmit={handleCodeSubmit} className="flex flex-col gap-4">
-            <p className="text-sm text-muted text-center">
-              We sent a code to <strong>{email}</strong>. Enter it below to finish creating your account.
-            </p>
-
-            <input
-              type="text"
-              inputMode="numeric"
-              placeholder="Code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              autoComplete="one-time-code"
-              autoFocus
-              required
-              className={inputClass}
-            />
-
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Verifying…" : "Verify and create account"}
-            </Button>
-
-            <button type="button" onClick={() => setStep("details")} className="text-sm text-muted text-center">
-              Back
-            </button>
-          </form>
+          <p className="text-sm text-muted text-center">
+            We sent a confirmation link to <strong>{email}</strong>. Open it on this device to finish creating your
+            account.
+          </p>
         )}
       </div>
     </main>
