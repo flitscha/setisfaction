@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient, usernameToEmail } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
+import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
 
@@ -11,26 +12,36 @@ const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparen
 
 export default function LoginPage() {
   const router = useRouter();
+  const utils = trpc.useUtils();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setShowForgotPassword(false);
     setIsSubmitting(true);
 
+    const { email } = await utils.auth.resolveLoginEmail.fetch({ username });
+
+    if (!email) {
+      setIsSubmitting(false);
+      setError("Username or password is wrong.");
+      setShowForgotPassword(true);
+      return;
+    }
+
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: usernameToEmail(username),
-      password,
-    });
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
     setIsSubmitting(false);
 
     if (signInError) {
       setError("Username or password is wrong.");
+      setShowForgotPassword(true);
       return;
     }
 
@@ -68,7 +79,16 @@ export default function LoginPage() {
           className={inputClass}
         />
 
-        {error && <p className="text-red-600 text-sm">{error}</p>}
+        {error && (
+          <div className="flex flex-col gap-1">
+            <p className="text-red-600 text-sm">{error}</p>
+            {showForgotPassword && (
+              <Link href="/forgot-password" className="text-sm text-muted underline w-fit">
+                Forgot password?
+              </Link>
+            )}
+          </div>
+        )}
 
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Logging in…" : "Log in"}

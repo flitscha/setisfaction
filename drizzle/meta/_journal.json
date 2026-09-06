@@ -64,6 +64,13 @@
       "when": 1788708426575,
       "tag": "0008_cultured_toad_men",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788722648909,
+      "tag": "0009_strong_paibok",
+      "breakpoints": true
     }
   ]
 }

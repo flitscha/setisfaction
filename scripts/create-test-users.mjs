@@ -1,8 +1,11 @@
 // Dev-only: ensures a fixed set of test accounts exist with a known
 // password, so friend/community features can be tested repeatably without
-// touching real accounts. Uses the real registration endpoint (so profile +
-// default groups are set up exactly like a real sign-up) — the dev server
-// must be running locally first. Also seeds user1/user2 with realistic
+// touching real accounts. Created directly via the Supabase admin API
+// (not the real public registration flow, which now requires reading a
+// confirmation code out of an actual inbox) with an @setisfaction.test
+// email — not @setisfaction.local, so the proxy's forced /verify-email
+// detour (see src/proxy.ts) never applies to these; they're meant to stay
+// fast and frictionless to log into. Also seeds user1/user2 with realistic
 // training history and friends them with each other, leaving user3
 // unfriended, so both the "already friends" and "pending request" states
 // are ready to test out of the box.
@@ -10,37 +13,59 @@
 import { execFileSync } from "node:child_process";
 import { config } from "dotenv";
 import postgres from "postgres";
+import { createClient } from "@supabase/supabase-js";
 
 config({ path: ".env.local" });
 
 const USERNAMES = ["user1", "user2", "user3"];
 const PASSWORD = "123455";
-const BASE_URL = process.env.TEST_USERS_BASE_URL ?? "http://localhost:3000";
 
 const sql = postgres(process.env.DIRECT_URL, { prepare: false });
+const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+
+function testEmail(username) {
+  return `${username}@setisfaction.test`;
+}
 
 async function ensureUser(username) {
-  const email = `${username}@setisfaction.local`;
-  const [existing] = await sql`select id from auth.users where email = ${email}`;
-  if (existing) {
+  const email = testEmail(username);
+
+  // Self-heal an account still on the old synthetic email — either created
+  // by an older version of this script, or backfilled by
+  // scripts/backfill-usernames.mjs (which only ever sets profiles.username,
+  // deliberately never touches auth.users.email — see that script). Checked
+  // before the "already exists" short-circuit below, since a backfilled
+  // test account already has profiles.username set but still needs this.
+  const legacyEmail = `${username}@setisfaction.local`;
+  const { data: existingUsers } = await admin.auth.admin.listUsers();
+  const legacy = existingUsers.users.find((u) => u.email === legacyEmail);
+  if (legacy) {
+    await admin.auth.admin.updateUserById(legacy.id, { email, email_confirm: true, user_metadata: { username } });
+    await sql`
+      insert into profiles (user_id, username) values (${legacy.id}, ${username})
+      on conflict (user_id) do update set username = ${username}
+    `;
+    console.log(`${username} migrated from the old synthetic email`);
+    return legacy.id;
+  }
+
+  const [existingProfile] = await sql`select user_id from profiles where lower(username) = lower(${username})`;
+  if (existingProfile) {
     console.log(`${username} already exists`);
-    return existing.id;
+    return existingProfile.user_id;
   }
 
-  const res = await fetch(`${BASE_URL}/api/trpc/auth.register?batch=1`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ "0": { json: { username, password: PASSWORD } } }),
+  const { data, error } = await admin.auth.admin.createUser({
+    email,
+    password: PASSWORD,
+    email_confirm: true,
+    user_metadata: { username },
   });
-  const data = await res.json();
-  const result = data[0]?.result?.data?.json;
-  if (!result?.success) {
-    throw new Error(`Failed to create ${username}: ${JSON.stringify(data)}`);
-  }
-  console.log(`created ${username}`);
+  if (error) throw error;
 
-  const [created] = await sql`select id from auth.users where email = ${email}`;
-  return created.id;
+  await sql`insert into profiles (user_id, username) values (${data.user.id}, ${username})`;
+  console.log(`created ${username}`);
+  return data.user.id;
 }
 
 async function ensureFriendship(userIdA, userIdB) {

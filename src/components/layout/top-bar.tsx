@@ -4,14 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, LogOut, Mail, ShieldCheck, X } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { isPublicAuthPath } from "@/lib/auth-pages";
+import { isChromelessPath } from "@/lib/auth-pages";
 import { trpc } from "@/lib/trpc/client";
 import { useViewAsUser } from "@/components/admin/view-as-context";
 import { DeleteUserButton } from "@/components/admin/delete-user-button";
 
 export function TopBar() {
   const pathname = usePathname();
-  const isPublic = isPublicAuthPath(pathname);
+  const isPublic = isChromelessPath(pathname);
   const viewAsUser = useViewAsUser();
   const { data: isAdmin } = trpc.admin.isAdmin.useQuery(undefined, { enabled: !isPublic });
   const { data: me } = trpc.auth.me.useQuery(undefined, { enabled: !isPublic && !viewAsUser });

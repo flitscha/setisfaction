@@ -8,7 +8,7 @@ import postgres from "postgres";
 config({ path: ".env.local" });
 
 const username = process.argv[2] ?? "felix";
-const email = `${username.trim().toLowerCase()}@setisfaction.local`;
+const legacyEmail = `${username.trim().toLowerCase()}@setisfaction.local`;
 
 const sql = postgres(process.env.DATABASE_URL, { prepare: false });
 
@@ -374,12 +374,18 @@ function randomInt(min, max) {
 }
 
 async function main() {
-  const [user] = await sql`select id from auth.users where email = ${email}`;
+  // profiles.username is the real lookup now that email is real/verified
+  // and no longer encodes the username; the old synthetic-email form is
+  // only a fallback for an account that hasn't been through
+  // /verify-email yet (see auth.resolveLoginEmail for the same pattern).
+  const [byUsername] = await sql`select user_id as id from profiles where lower(username) = lower(${username})`;
+  const [byLegacyEmail] = byUsername ? [] : await sql`select id from auth.users where email = ${legacyEmail}`;
+  const user = byUsername ?? byLegacyEmail;
   if (!user) {
-    throw new Error(`No auth.users row for ${email}. Create the user in the Supabase dashboard first.`);
+    throw new Error(`No account found for username "${username}". Create the user first (register, or scripts/create-test-users.mjs).`);
   }
   const userId = user.id;
-  console.log(`Seeding data for ${email} (${userId})`);
+  console.log(`Seeding data for ${username} (${userId})`);
 
   // Resets this user's own data — never touches the shared catalog (user_id
   // is null there) or other users' groups/sets. Deleting their groups first
