@@ -22,6 +22,54 @@ export type ProgressSet = {
   weightKg: number | null;
 };
 
+// One chart section — plain when there's no comparison, or the primary vs.
+// comparison overlay (with a legend) when there is. `pick` chooses which
+// value off each day's aggregate this section is about (best vs. total).
+function ChartSection({
+  title,
+  daily,
+  comparisonDaily,
+  comparison,
+  primaryLabel,
+  pick,
+}: {
+  title: string;
+  daily: DailyAggregate[];
+  comparisonDaily: DailyAggregate[] | null;
+  comparison?: { label: string } | null;
+  primaryLabel: string;
+  pick: (d: DailyAggregate) => number;
+}) {
+  return (
+    <section className="flex flex-col gap-2">
+      <p className="text-sm font-medium px-1">{title}</p>
+      {comparison ? (
+        <>
+          <ComparisonTrendChart
+            series={[
+              { label: primaryLabel, points: daily.map((d) => ({ date: d.date, value: pick(d) })), colorClassName: "text-accent" },
+              {
+                label: comparison.label,
+                points: (comparisonDaily ?? []).map((d) => ({ date: d.date, value: pick(d) })),
+                colorClassName: "text-muted",
+                dashed: true,
+              },
+            ]}
+          />
+          <ChartLegend
+            series={[
+              { label: primaryLabel, points: [], colorClassName: "text-accent" },
+              { label: comparison.label, points: [], colorClassName: "text-muted", dashed: true },
+            ]}
+          />
+        </>
+      ) : (
+        <TrendChart points={daily.map((d) => ({ date: d.date, value: pick(d) }))} />
+      )}
+    </section>
+  );
+}
+
 function dailyForField(history: ProgressSet[], field: TrackedField | null): DailyAggregate[] {
   const points = history
     .map((set) => {
@@ -108,41 +156,23 @@ export function ExerciseProgressView({
         </div>
       )}
 
-      <section className="flex flex-col gap-2">
-        <p className="text-sm font-medium px-1">Best per training day</p>
-        {comparison ? (
-          <>
-            <ComparisonTrendChart
-              series={[
-                {
-                  label: primaryLabel,
-                  points: daily.map((d) => ({ date: d.date, value: d.best })),
-                  colorClassName: "text-accent",
-                },
-                {
-                  label: comparison.label,
-                  points: (comparisonDaily ?? []).map((d) => ({ date: d.date, value: d.best })),
-                  colorClassName: "text-muted",
-                  dashed: true,
-                },
-              ]}
-            />
-            <ChartLegend
-              series={[
-                { label: primaryLabel, points: [], colorClassName: "text-accent" },
-                { label: comparison.label, points: [], colorClassName: "text-muted", dashed: true },
-              ]}
-            />
-          </>
-        ) : (
-          <TrendChart points={daily.map((d) => ({ date: d.date, value: d.best }))} />
-        )}
-      </section>
+      <ChartSection
+        title="Best per training day"
+        daily={daily}
+        comparisonDaily={comparisonDaily}
+        comparison={comparison}
+        primaryLabel={primaryLabel}
+        pick={(d) => d.best}
+      />
 
-      <section className="flex flex-col gap-2">
-        <p className="text-sm font-medium px-1">Total {unitLabel} per training day</p>
-        <TrendChart points={daily.map((d) => ({ date: d.date, value: d.total }))} />
-      </section>
+      <ChartSection
+        title={`Total ${unitLabel} per training day`}
+        daily={daily}
+        comparisonDaily={comparisonDaily}
+        comparison={comparison}
+        primaryLabel={primaryLabel}
+        pick={(d) => d.total}
+      />
 
       {recentDays.length > 0 && (
         <section className="flex flex-col gap-2">

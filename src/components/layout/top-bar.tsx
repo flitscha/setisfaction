@@ -43,8 +43,7 @@ export function TopBar() {
   return (
     <header className="border-b border-card-border px-4 py-3 flex items-center justify-between">
       <p className="font-semibold">Setisfaction</p>
-      <div className="flex items-center gap-3">
-        {me && <span className="text-sm text-muted">{me.username}</span>}
+      <div className="flex items-center gap-5">
         <Link href="/community" aria-label="Friends" className="relative text-muted hover:text-foreground">
           <Mail size={20} />
           {!!requestCount && (
@@ -53,6 +52,7 @@ export function TopBar() {
             </span>
           )}
         </Link>
+        {me && <span className="text-sm text-muted">{me.username}</span>}
         {isAdmin && (
           <Link href="/admin" aria-label="Admin" className="text-muted hover:text-foreground">
             <ShieldCheck size={20} />

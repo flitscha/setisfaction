@@ -1,20 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { openFriendProfile } from "@/lib/friend-profile";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 
-type Tab = "directory" | "friends" | "requests";
-const TABS: Tab[] = ["directory", "friends", "requests"];
+type Tab = "everyone" | "friends" | "requests";
+const TABS: Tab[] = ["everyone", "friends", "requests"];
 
 export default function CommunityPage() {
-  const [tab, setTab] = useState<Tab>("directory");
+  const router = useRouter();
+  const [tab, setTab] = useState<Tab>("everyone");
   const [query, setQuery] = useState("");
   const utils = trpc.useUtils();
 
-  const { data: users } = trpc.community.listUsers.useQuery(undefined, { enabled: tab === "directory" });
+  const { data: users } = trpc.community.listUsers.useQuery(undefined, { enabled: tab === "everyone" });
   const { data: friends } = trpc.community.listFriends.useQuery(undefined, { enabled: tab === "friends" });
   const { data: incoming } = trpc.community.listIncomingRequests.useQuery(undefined, { enabled: tab === "requests" });
   const { data: outgoing } = trpc.community.listOutgoingRequests.useQuery(undefined, { enabled: tab === "requests" });
@@ -38,6 +41,14 @@ export default function CommunityPage() {
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
+      <button
+        onClick={() => router.back()}
+        className="flex items-center gap-1.5 py-2 -my-2 text-sm text-muted hover:text-foreground w-fit"
+      >
+        <ArrowLeft size={18} />
+        Back
+      </button>
+
       <h1 className="text-xl font-semibold px-1">Community</h1>
 
       <div className="flex gap-2 px-1">
@@ -55,7 +66,7 @@ export default function CommunityPage() {
         ))}
       </div>
 
-      {tab === "directory" && (
+      {tab === "everyone" && (
         <div className="flex flex-col gap-3">
           {users && users.length > 0 && <SearchInput value={query} onChange={setQuery} placeholder="Search users…" />}
           {users?.length === 0 && <p className="text-sm text-muted px-1">No other users yet.</p>}
@@ -68,16 +79,7 @@ export default function CommunityPage() {
                 key={u.userId}
                 className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3"
               >
-                {u.status === "friends" ? (
-                  <button
-                    onClick={() => openFriendProfile({ userId: u.userId, username: u.username })}
-                    className="font-medium truncate hover:underline"
-                  >
-                    {u.username}
-                  </button>
-                ) : (
-                  <p className="font-medium truncate">{u.username}</p>
-                )}
+                <p className="font-medium truncate">{u.username}</p>
 
                 {u.status === "none" && (
                   <Button
@@ -111,7 +113,14 @@ export default function CommunityPage() {
                     </Button>
                   </div>
                 )}
-                {u.status === "friends" && <span className="text-sm text-muted whitespace-nowrap">✓ Friends</span>}
+                {u.status === "friends" && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => openFriendProfile({ userId: u.userId, username: u.username })}
+                  >
+                    Profile
+                  </Button>
+                )}
               </div>
             ))}
           </div>
@@ -121,22 +130,22 @@ export default function CommunityPage() {
       {tab === "friends" && (
         <div className="flex flex-col gap-2">
           {friends?.length === 0 && (
-            <p className="text-sm text-muted px-1">No friends yet — add someone from Directory.</p>
+            <p className="text-sm text-muted px-1">No friends yet — send a request from Everyone.</p>
           )}
           {friends?.map((f) => (
             <div
               key={f.userId}
               className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3"
             >
-              <button
-                onClick={() => openFriendProfile({ userId: f.userId, username: f.username })}
-                className="font-medium truncate hover:underline"
-              >
-                {f.username}
-              </button>
-              <Button variant="ghost" onClick={() => unfriend.mutate({ userId: f.userId })} disabled={unfriend.isPending}>
-                Remove
-              </Button>
+              <p className="font-medium truncate">{f.username}</p>
+              <div className="flex gap-2 shrink-0">
+                <Button variant="secondary" onClick={() => openFriendProfile({ userId: f.userId, username: f.username })}>
+                  Profile
+                </Button>
+                <Button variant="ghost" onClick={() => unfriend.mutate({ userId: f.userId })} disabled={unfriend.isPending}>
+                  Remove
+                </Button>
+              </div>
             </div>
           ))}
         </div>
