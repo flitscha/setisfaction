@@ -8,3 +8,11 @@ export function usernameToEmail(username: string): string {
 export function emailToUsername(email: string): string {
   return email.replace(/@setisfaction\.local$/, "");
 }
+
+// True for an account created before real-email registration existed —
+// still logs in fine (see auth.resolveLoginEmail's fallback), but the proxy
+// forces it through /verify-email before anything else, since there's no
+// working email on file for password recovery.
+export function isSyntheticEmail(email: string): boolean {
+  return email.endsWith("@setisfaction.local");
+}

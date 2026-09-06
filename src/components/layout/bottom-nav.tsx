@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarCheck, LineChart } from "lucide-react";
-import { isPublicAuthPath } from "@/lib/auth-pages";
+import { isChromelessPath } from "@/lib/auth-pages";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
 
 const TABS = [
@@ -15,7 +15,7 @@ const TABS = [
 export function BottomNav() {
   const pathname = usePathname();
 
-  if (isPublicAuthPath(pathname)) {
+  if (isChromelessPath(pathname)) {
     return null;
   }
 

@@ -13,13 +13,17 @@ if (!username) {
   process.exit(1);
 }
 
-const email = `${username.trim().toLowerCase()}@setisfaction.local`;
+const legacyEmail = `${username.trim().toLowerCase()}@setisfaction.local`;
 const sql = postgres(process.env.DATABASE_URL, { prepare: false });
 
 async function main() {
-  const [user] = await sql`select id from auth.users where email = ${email}`;
+  // profiles.username is the real lookup now; the synthetic-email form is
+  // only a fallback for an account that hasn't been through /verify-email yet.
+  const [byUsername] = await sql`select user_id as id from profiles where lower(username) = lower(${username})`;
+  const [byLegacyEmail] = byUsername ? [] : await sql`select id from auth.users where email = ${legacyEmail}`;
+  const user = byUsername ?? byLegacyEmail;
   if (!user) {
-    throw new Error(`No auth.users row for ${email}.`);
+    throw new Error(`No account found for username "${username}".`);
   }
 
   await sql`

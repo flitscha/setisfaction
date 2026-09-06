@@ -13,13 +13,28 @@ import {
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-// One row per auth user, created on registration. Only holds app-level flags
-// that don't belong in Supabase Auth itself (currently just admin status).
-export const profiles = pgTable("profiles", {
-  userId: uuid("user_id").primaryKey(),
-  isAdmin: boolean("is_admin").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+// One row per auth user, created on registration. Holds app-level flags that
+// don't belong in Supabase Auth itself (admin status), plus the username.
+//
+// Username used to be embedded in a synthetic email (`{username}@setisfaction.local`)
+// so login could stay username-only without Supabase's email-based auth ever
+// knowing about usernames — see CLAUDE.md's "Auth" section. Now that
+// registration collects a real, verified email, username needs its own
+// column instead: nullable at the DB level (existing accounts are backfilled
+// by a one-off script, not a migration, since it needs to read each
+// account's current synthetic email) but every account ends up with one —
+// filled in by that backfill for pre-existing accounts, or by
+// auth.completeRegistration for new ones.
+export const profiles = pgTable(
+  "profiles",
+  {
+    userId: uuid("user_id").primaryKey(),
+    username: text("username"),
+    isAdmin: boolean("is_admin").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("profiles_lower_username_idx").on(sql`lower(${table.username})`)],
+);
 
 export const exercises = pgTable(
   "exercises",
