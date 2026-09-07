@@ -85,6 +85,13 @@
       "when": 1788804249438,
       "tag": "0011_modern_firelord",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788811278812,
+      "tag": "0012_mysterious_wild_child",
+      "breakpoints": true
     }
   ]
 }

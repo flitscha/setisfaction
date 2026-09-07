@@ -5,7 +5,8 @@ import { exerciseGroupMembers, exerciseGroups, exercises } from "@/server/db/sch
 // The default grouping every user starts with for the shared exercise
 // catalog — purely a starting point, since exercise_groups are per-user and
 // freely renamed/reassigned/deleted afterward. Keep this in sync with
-// scripts/seed.mjs's EXERCISES list when a standard exercise is added.
+// scripts/seed.mjs's EXERCISES and GYM_EXERCISES lists when a standard
+// exercise is added.
 export const STANDARD_GROUP_NAMES = [
   "Push",
   "Pull",
@@ -19,6 +20,37 @@ export const STANDARD_GROUP_NAMES = [
 
 export const STANDARD_EXERCISE_GROUPS: Record<string, string[]> = {
   "Push-Ups": ["Push"],
+  // Gym exercises slot into the same Push/Pull/Legs groups as their
+  // calisthenics counterparts (a "push day" is a push day either way) rather
+  // than getting body-part-split groups of their own — keeps the default
+  // grouping simple and avoids a parallel taxonomy for the same movements.
+  "Bench Press (Barbell)": ["Push"],
+  "Incline Bench Press (Barbell)": ["Push"],
+  "Dumbbell Bench Press": ["Push"],
+  "Chest Press (Machine)": ["Push"],
+  "Cable Fly": ["Push"],
+  "Overhead Press (Barbell)": ["Push"],
+  "Dumbbell Shoulder Press": ["Push"],
+  "Lateral Raises (Dumbbell)": ["Push"],
+  "Tricep Pushdown (Cable)": ["Push"],
+  "Skull Crushers (EZ-Bar)": ["Push"],
+  "Deadlift (Barbell)": ["Pull"],
+  "Barbell Row": ["Pull"],
+  "Seated Cable Row": ["Pull"],
+  "Lat Pulldown": ["Pull"],
+  "T-Bar Row": ["Pull"],
+  "Face Pull (Cable)": ["Pull"],
+  "Bicep Curl (Barbell)": ["Pull"],
+  "Bicep Curl (Dumbbell)": ["Pull"],
+  "Hammer Curl (Dumbbell)": ["Pull"],
+  "Back Squat (Barbell)": ["Legs"],
+  "Front Squat (Barbell)": ["Legs"],
+  "Romanian Deadlift (Barbell)": ["Legs"],
+  "Leg Press (Machine)": ["Legs"],
+  "Leg Extension (Machine)": ["Legs"],
+  "Leg Curl (Machine)": ["Legs"],
+  "Hip Thrust (Barbell)": ["Legs"],
+  "Calf Raise (Machine)": ["Legs"],
   "Push-Ups (Deep, Parallettes)": ["Push"],
   Dips: ["Push"],
   "Diamond Push-Ups": ["Push"],

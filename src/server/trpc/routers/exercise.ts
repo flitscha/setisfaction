@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, count, eq, inArray, isNotNull, isNull, notInArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { exerciseGroupMembers, exerciseGroups, exercises, sets, workoutExercises, workouts } from "@/server/db/schema";
+import { exerciseGroupMembers, exerciseGroups, exercises, profiles, sets, workoutExercises, workouts } from "@/server/db/schema";
 import { readProcedure, router, writeProcedure } from "../trpc";
 
 const exerciseFields = z.object({
@@ -80,12 +80,59 @@ async function getForkedAwayStandardIds(userId: string): Promise<string[]> {
   return rows.map((r) => r.forkedFromId).filter((id): id is string => id !== null);
 }
 
+// Standard exercises hidden by this user's own profiles.wantsCalisthenics/
+// wantsGym choice (see schema.ts) — never a standard exercise they've
+// already logged a set against, even if its whole category is off, so
+// turning a category off can only decrease what's offered going forward,
+// never take away access to something already trained.
+async function getCategoryHiddenIds(userId: string): Promise<string[]> {
+  const [profile] = await db
+    .select({ wantsCalisthenics: profiles.wantsCalisthenics, wantsGym: profiles.wantsGym })
+    .from(profiles)
+    .where(eq(profiles.userId, userId));
+  if (!profile) return [];
+
+  const excludedCategories: ("calisthenics" | "gym")[] = [];
+  if (!profile.wantsCalisthenics) excludedCategories.push("calisthenics");
+  if (!profile.wantsGym) excludedCategories.push("gym");
+  if (excludedCategories.length === 0) return [];
+
+  const excludedRows = await db
+    .select({ id: exercises.id })
+    .from(exercises)
+    .where(and(isNull(exercises.userId), inArray(exercises.category, excludedCategories)));
+  if (excludedRows.length === 0) return [];
+
+  const trainedRows = await db
+    .select({ exerciseId: sets.exerciseId })
+    .from(sets)
+    .where(
+      and(
+        eq(sets.userId, userId),
+        inArray(
+          sets.exerciseId,
+          excludedRows.map((r) => r.id),
+        ),
+      ),
+    )
+    .groupBy(sets.exerciseId);
+  const trainedIds = new Set(trainedRows.map((r) => r.exerciseId));
+
+  return excludedRows.map((r) => r.id).filter((id) => !trainedIds.has(id));
+}
+
 // The exercises a given user sees: their own plus every standard one, minus
-// any standard exercise they've personally forked away (see updateStandard).
-// Exported so community.ts can build the same list for a friend's profile,
-// after checking friendship — this has no access control of its own.
+// any standard exercise they've personally forked away (see updateStandard)
+// or excluded via their exercise-category preference (see
+// getCategoryHiddenIds). Exported so community.ts can build the same list
+// for a friend's profile, after checking friendship — this has no access
+// control of its own.
 export async function listVisibleExercises(userId: string) {
-  const forkedAwayIds = await getForkedAwayStandardIds(userId);
+  const [forkedAwayIds, categoryHiddenIds] = await Promise.all([
+    getForkedAwayStandardIds(userId),
+    getCategoryHiddenIds(userId),
+  ]);
+  const hiddenIds = [...forkedAwayIds, ...categoryHiddenIds];
 
   const rows = await db
     .select()
@@ -93,7 +140,7 @@ export async function listVisibleExercises(userId: string) {
     .where(
       and(
         or(eq(exercises.userId, userId), isNull(exercises.userId)),
-        forkedAwayIds.length > 0 ? notInArray(exercises.id, forkedAwayIds) : undefined,
+        hiddenIds.length > 0 ? notInArray(exercises.id, hiddenIds) : undefined,
       ),
     )
     .orderBy(exercises.name);
@@ -106,7 +153,11 @@ export const exerciseRouter = router({
   list: readProcedure.query(({ ctx }) => listVisibleExercises(ctx.viewUserId)),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
-    const forkedAwayIds = await getForkedAwayStandardIds(ctx.viewUserId);
+    const [forkedAwayIds, categoryHiddenIds] = await Promise.all([
+      getForkedAwayStandardIds(ctx.viewUserId),
+      getCategoryHiddenIds(ctx.viewUserId),
+    ]);
+    const hiddenIds = [...forkedAwayIds, ...categoryHiddenIds];
 
     const [exercise] = await db
       .select()
@@ -115,7 +166,7 @@ export const exerciseRouter = router({
         and(
           eq(exercises.id, input.id),
           or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)),
-          forkedAwayIds.length > 0 ? notInArray(exercises.id, forkedAwayIds) : undefined,
+          hiddenIds.length > 0 ? notInArray(exercises.id, hiddenIds) : undefined,
         ),
       );
 

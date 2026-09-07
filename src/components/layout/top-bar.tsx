@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeft, LogOut, Mail, ShieldCheck, X } from "lucide-react";
+import { ArrowLeft, LogOut, Mail, Settings, ShieldCheck, X } from "lucide-react";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { isChromelessPath } from "@/lib/auth-pages";
 import { trpc } from "@/lib/trpc/client";
@@ -53,6 +53,9 @@ export function TopBar() {
           )}
         </Link>
         {me && <span className="text-sm text-muted">{me.username}</span>}
+        <Link href="/settings" aria-label="Settings" className="text-muted hover:text-foreground">
+          <Settings size={20} />
+        </Link>
         {isAdmin && (
           <Link href="/admin" aria-label="Admin" className="text-muted hover:text-foreground">
             <ShieldCheck size={20} />

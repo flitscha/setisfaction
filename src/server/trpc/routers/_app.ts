@@ -7,6 +7,7 @@ import { exerciseRouter } from "./exercise";
 import { groupRouter } from "./group";
 import { healthRouter } from "./health";
 import { setRouter } from "./set";
+import { settingsRouter } from "./settings";
 import { statsRouter } from "./stats";
 import { trainingPlanRouter } from "./training-plan";
 import { workoutRouter } from "./workout";
@@ -20,6 +21,7 @@ export const appRouter = router({
   exercise: exerciseRouter,
   group: groupRouter,
   set: setRouter,
+  settings: settingsRouter,
   stats: statsRouter,
   workout: workoutRouter,
   trainingPlan: trainingPlanRouter,

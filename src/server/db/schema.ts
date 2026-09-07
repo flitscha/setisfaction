@@ -32,6 +32,18 @@ export const profiles = pgTable(
     userId: uuid("user_id").primaryKey(),
     username: text("username"),
     isAdmin: boolean("is_admin").notNull().default(false),
+    // Which parts of the shared exercise catalog this user sees by default —
+    // chosen once during onboarding (src/app/onboarding/exercise-categories),
+    // changeable any time in Settings. Purely a visibility filter over the
+    // standard catalog (see exercise.ts's getCategoryHiddenIds): never
+    // affects a user's own personal exercises, and never hides a standard
+    // exercise they've already logged a set against, so turning a category
+    // off only declutters what they've never touched — nothing is ever lost.
+    // Defaults match the app's original calisthenics-only catalog, so
+    // existing accounts (created before this existed) see exactly what they
+    // always have.
+    wantsCalisthenics: boolean("wants_calisthenics").notNull().default(true),
+    wantsGym: boolean("wants_gym").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("profiles_lower_username_idx").on(sql`lower(${table.username})`)],
@@ -52,6 +64,11 @@ export const exercises = pgTable(
     tracksReps: boolean("tracks_reps").notNull().default(true),
     tracksTime: boolean("tracks_time").notNull().default(false),
     tracksWeight: boolean("tracks_weight").notNull().default(false),
+    // Which training style a standard exercise belongs to — used to filter
+    // the catalog by the viewer's profiles.wantsCalisthenics/wantsGym (see
+    // exercise.ts's getCategoryHiddenIds). Null for every personal exercise
+    // (always visible to its owner regardless, category doesn't apply).
+    category: text("category").$type<"calisthenics" | "gym">(),
     // Set only on a personal exercise created by forking a standard one to
     // change its tracked fields (see CLAUDE.md's "Shared exercise catalog").
     // Points at the standard exercise it replaces for this user; that

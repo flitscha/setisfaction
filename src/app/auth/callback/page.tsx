@@ -115,6 +115,12 @@ function AuthCallbackContent() {
           }
           return;
         }
+
+        if (!cancelled) {
+          router.push("/onboarding/exercise-categories");
+          router.refresh();
+        }
+        return;
       }
 
       if (!cancelled) {

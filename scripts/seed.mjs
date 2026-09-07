@@ -1,6 +1,8 @@
 // Dev-only seed script: ensures the shared exercise catalog (user_id null,
-// visible to everyone) has the full curated list, then replaces one user's
-// own groups/sets with ~3 weeks of realistic training history against it.
+// visible to everyone) has the full curated list — EXERCISES (calisthenics)
+// plus GYM_EXERCISES (gym) below — then replaces one user's own groups/sets
+// with ~3 weeks of realistic *calisthenics* training history against it (the
+// gym catalog is catalog-only here; nothing rotates it into the fake history).
 // Usage: node scripts/seed.mjs [username]  (defaults to "felix")
 import { config } from "dotenv";
 import postgres from "postgres";
@@ -367,6 +369,42 @@ const EXERCISES = [
   },
 ];
 
+// Standard gym exercises — catalog-only, kept separate from EXERCISES so the
+// fake training-history generator below (which rotates through EXERCISES by
+// group) doesn't start mixing barbell work into what's meant to stay a
+// calisthenics-only test fixture. Kept in sync with the migration that
+// originally inserted these and with standard-groups.ts's grouping map;
+// update all three when adding another one.
+const GYM_EXERCISES = [
+  { name: "Bench Press (Barbell)", groups: ["Push"], description: "Barbell bench press: lower the bar to the chest, then press back up to full arm extension." },
+  { name: "Incline Bench Press (Barbell)", groups: ["Push"], description: "Bench press on an incline bench, emphasizing the upper chest." },
+  { name: "Dumbbell Bench Press", groups: ["Push"], description: "Bench press performed with a dumbbell in each hand instead of a barbell." },
+  { name: "Chest Press (Machine)", groups: ["Push"], description: "Seated chest press on a machine, pressing the handles forward to full extension." },
+  { name: "Cable Fly", groups: ["Push"], description: "Standing between two cable stacks, bring the handles together in front of the chest with a slight elbow bend." },
+  { name: "Overhead Press (Barbell)", groups: ["Push"], description: "Standing barbell press from shoulder height to full overhead lockout." },
+  { name: "Dumbbell Shoulder Press", groups: ["Push"], description: "Overhead press performed with a dumbbell in each hand, seated or standing." },
+  { name: "Lateral Raises (Dumbbell)", groups: ["Push"], description: "Raise a dumbbell in each hand out to the sides until roughly shoulder height, then lower with control." },
+  { name: "Tricep Pushdown (Cable)", groups: ["Push"], description: "Standing at a cable stack, push the bar or rope down to full elbow extension, keeping the upper arms still." },
+  { name: "Skull Crushers (EZ-Bar)", groups: ["Push"], description: "Lying down, lower an EZ-bar toward the forehead by bending the elbows, then extend back up." },
+  { name: "Deadlift (Barbell)", groups: ["Pull"], description: "Lift a loaded barbell from the floor to hip level by extending the hips and knees, keeping the back straight." },
+  { name: "Barbell Row", groups: ["Pull"], description: "Bent-over row with a barbell, pulling it toward the lower chest/upper abdomen." },
+  { name: "Seated Cable Row", groups: ["Pull"], description: "Seated at a low cable row station, pull the handle toward the torso, squeezing the shoulder blades together." },
+  { name: "Lat Pulldown", groups: ["Pull"], description: "Seated at a cable machine, pull a wide bar down toward the upper chest." },
+  { name: "T-Bar Row", groups: ["Pull"], description: "Bent-over row using a T-bar/landmine setup, pulling the handles toward the torso." },
+  { name: "Face Pull (Cable)", groups: ["Pull"], description: "Using a rope attachment at head height, pull toward the face while flaring the elbows out — targets the rear shoulders." },
+  { name: "Bicep Curl (Barbell)", groups: ["Pull"], description: "Standing barbell curl: curl the bar up toward the shoulders, then lower with control." },
+  { name: "Bicep Curl (Dumbbell)", groups: ["Pull"], description: "Standing or seated dumbbell curl, one or both arms at a time." },
+  { name: "Hammer Curl (Dumbbell)", groups: ["Pull"], description: "Dumbbell curl performed with a neutral (palms-facing-in) grip throughout." },
+  { name: "Back Squat (Barbell)", groups: ["Legs"], description: "Barbell resting across the upper back, squat down until the thighs are at least parallel to the ground, then stand back up." },
+  { name: "Front Squat (Barbell)", groups: ["Legs"], description: "Barbell resting across the front of the shoulders, squat down and stand back up." },
+  { name: "Romanian Deadlift (Barbell)", groups: ["Legs"], description: "Hinge at the hips with a slight knee bend, lowering a barbell along the legs, then return to standing — targets the hamstrings and glutes." },
+  { name: "Leg Press (Machine)", groups: ["Legs"], description: "Seated or reclined on a leg press machine, push the platform away by extending the legs." },
+  { name: "Leg Extension (Machine)", groups: ["Legs"], description: "Seated on a machine, extend the legs against resistance to work the quads in isolation." },
+  { name: "Leg Curl (Machine)", groups: ["Legs"], description: "Lying, seated, or standing on a machine, curl the heels toward the glutes to work the hamstrings in isolation." },
+  { name: "Hip Thrust (Barbell)", groups: ["Legs"], description: "Upper back braced on a bench, barbell across the hips, drive the hips upward to full extension." },
+  { name: "Calf Raise (Machine)", groups: ["Legs"], description: "Standing or seated on a calf raise machine, rise onto the balls of the feet, then lower with control." },
+];
+
 const GROUPS = ["Push", "Pull", "Legs", "Handstand", "Front Lever", "Back Lever", "L-Sit", "Planche"];
 
 function randomInt(min, max) {
@@ -406,8 +444,23 @@ async function main() {
       continue;
     }
     const [exercise] = await sql`
-      insert into exercises (user_id, name, description, tracks_reps, tracks_time, tracks_weight)
-      values (null, ${def.name}, ${def.description}, ${def.tracksReps}, ${def.tracksTime}, false)
+      insert into exercises (user_id, name, description, tracks_reps, tracks_time, tracks_weight, category)
+      values (null, ${def.name}, ${def.description}, ${def.tracksReps}, ${def.tracksTime}, false, 'calisthenics')
+      returning id
+    `;
+    exerciseIdByName[def.name] = exercise.id;
+  }
+
+  // Gym exercises all track reps + weight (never time) — see GYM_EXERCISES.
+  for (const def of GYM_EXERCISES) {
+    const [existing] = await sql`select id from exercises where user_id is null and lower(name) = lower(${def.name})`;
+    if (existing) {
+      exerciseIdByName[def.name] = existing.id;
+      continue;
+    }
+    const [exercise] = await sql`
+      insert into exercises (user_id, name, description, tracks_reps, tracks_time, tracks_weight, category)
+      values (null, ${def.name}, ${def.description}, true, false, true, 'gym')
       returning id
     `;
     exerciseIdByName[def.name] = exercise.id;
@@ -419,7 +472,7 @@ async function main() {
     groupIdByName[name] = group.id;
   }
 
-  for (const def of EXERCISES) {
+  for (const def of [...EXERCISES, ...GYM_EXERCISES]) {
     for (const groupName of def.groups) {
       await sql`
         insert into exercise_group_members (exercise_id, group_id)
