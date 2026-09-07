@@ -9,6 +9,7 @@ import { ExercisePicker, type PickableExercise } from "@/components/sets/exercis
 import { SetForm, type SetFormValues } from "@/components/sets/set-form";
 import { TodayExerciseCard } from "@/components/sets/today-exercise-card";
 import { Modal } from "@/components/ui/modal";
+import { PlanWorkoutCard } from "@/components/plans/plan-workout-card";
 
 type EditingSet = {
   id: string;
@@ -20,9 +21,20 @@ type EditingSet = {
 
 export default function TodayPage() {
   const isReadOnly = useViewAsUser() !== null;
-  const { start, end } = useMemo(() => getLocalDayRange(), []);
+  const now = useMemo(() => new Date(), []);
+  const { start, end } = useMemo(() => getLocalDayRange(now), [now]);
+  const yesterdayRef = useMemo(() => new Date(now.getTime() - 24 * 60 * 60 * 1000), [now]);
+  const { start: yesterdayStart, end: yesterdayEnd } = useMemo(() => getLocalDayRange(yesterdayRef), [yesterdayRef]);
   const utils = trpc.useUtils();
   const { data: todaySets } = trpc.set.listByDay.useQuery({ dayStart: start, dayEnd: end });
+  const { data: planWorkout } = trpc.trainingPlan.todayWorkout.useQuery({
+    todayWeekday: now.getDay(),
+    yesterdayWeekday: yesterdayRef.getDay(),
+    todayStart: start,
+    todayEnd: end,
+    yesterdayStart,
+    yesterdayEnd,
+  });
 
   const [showPicker, setShowPicker] = useState(false);
   const [activeExercise, setActiveExercise] = useState<PickableExercise | null>(null);
@@ -146,6 +158,8 @@ export default function TodayPage() {
   return (
     <main className="flex-1 p-4 pb-24 max-w-md mx-auto w-full flex flex-col gap-4">
       <h1 className="text-xl font-semibold px-1">Today</h1>
+
+      {planWorkout && <PlanWorkoutCard workout={planWorkout} isReadOnly={isReadOnly} />}
 
       {displayGroups.length === 0 && (
         <p className="text-muted px-1">

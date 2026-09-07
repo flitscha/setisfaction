@@ -15,6 +15,7 @@ const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparen
 export function SetForm({
   exercise,
   initialValues,
+  fixedValues,
   onSubmit,
   isSubmitting,
   onCancel,
@@ -23,12 +24,19 @@ export function SetForm({
 }: {
   exercise: { tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean };
   initialValues?: SetFormValues;
+  // Plan-defined target values: no input is rendered for a field present
+  // here, and its value is merged straight into the submitted set.
+  fixedValues?: SetFormValues;
   onSubmit: (values: SetFormValues) => void;
   isSubmitting: boolean;
   onCancel: () => void;
   onDelete?: () => void;
   isDeleting?: boolean;
 }) {
+  const showReps = exercise.tracksReps && fixedValues?.reps === undefined;
+  const showTime = exercise.tracksTime && fixedValues?.timeSeconds === undefined;
+  const showWeight = exercise.tracksWeight && fixedValues?.weightKg === undefined;
+
   const [reps, setReps] = useState(initialValues?.reps !== undefined ? String(initialValues.reps) : "");
   const [timeSeconds, setTimeSeconds] = useState(
     initialValues?.timeSeconds !== undefined ? String(initialValues.timeSeconds) : "",
@@ -40,14 +48,14 @@ export function SetForm({
 
   // Only guards freshly-entered, not-yet-saved values (create flow) — cancelling
   // an edit never loses anything, the previous values are still safely stored.
-  const hasUnsavedEntry = !initialValues && (reps !== "" || timeSeconds !== "" || weightKg !== "");
+  const hasUnsavedEntry = !initialValues && ((showReps && reps !== "") || (showTime && timeSeconds !== "") || (showWeight && weightKg !== ""));
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     onSubmit({
-      reps: exercise.tracksReps && reps !== "" ? Number(reps) : undefined,
-      timeSeconds: exercise.tracksTime && timeSeconds !== "" ? Number(timeSeconds) : undefined,
-      weightKg: exercise.tracksWeight && weightKg !== "" ? Number(weightKg) : undefined,
+      reps: fixedValues?.reps ?? (showReps && reps !== "" ? Number(reps) : undefined),
+      timeSeconds: fixedValues?.timeSeconds ?? (showTime && timeSeconds !== "" ? Number(timeSeconds) : undefined),
+      weightKg: fixedValues?.weightKg ?? (showWeight && weightKg !== "" ? Number(weightKg) : undefined),
     });
   }
 
@@ -65,7 +73,7 @@ export function SetForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-t border-card-border pt-3">
-      {exercise.tracksReps && (
+      {showReps && (
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium">Reps</span>
           <input
@@ -79,7 +87,7 @@ export function SetForm({
         </label>
       )}
 
-      {exercise.tracksTime && (
+      {showTime && (
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium">Time (seconds)</span>
           <input
@@ -119,7 +127,7 @@ export function SetForm({
         </label>
       )}
 
-      {exercise.tracksWeight && (
+      {showWeight && (
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium">Weight (kg)</span>
           <input

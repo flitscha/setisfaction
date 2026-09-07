@@ -252,7 +252,12 @@ export const trainingPlanRouter = router({
       }
 
       if (yesterdayWorkoutId) {
-        const yesterday = await workoutCard(yesterdayWorkoutId, input.yesterdayStart, input.yesterdayEnd, true);
+        // Counts through the end of *today*, not just yesterday: a set
+        // logged today to finish off a missed catch-up exercise still has
+        // today's timestamp (it shows in today's normal set list, per the
+        // spec), so progress toward the catch-up has to include today's
+        // window too or checking off an exercise here would never register.
+        const yesterday = await workoutCard(yesterdayWorkoutId, input.yesterdayStart, input.todayEnd, true);
         if (yesterday && !yesterday.isComplete) return yesterday;
       }
 
