@@ -3,15 +3,14 @@
 import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath } from "@/components/admin/view-as-context";
-import { aggregateByDay } from "@/lib/stats";
+import { aggregateByDay, TRACKED_FIELD_UNIT, valueForField, type TrackedField } from "@/lib/stats";
 import { CustomBadge } from "@/components/exercises/custom-badge";
 import { Sparkline } from "./sparkline";
 
-type TrackedField = "reps" | "time" | "weight";
-
-const UNIT: Record<TrackedField, string> = { reps: "reps", time: "s", weight: "kg" };
-
+// Volume (reps × weight) takes priority over either alone for a gym-style
+// exercise that tracks both — see valueForField's comment for why.
 function primaryField(exercise: { tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean }): TrackedField | null {
+  if (exercise.tracksReps && exercise.tracksWeight) return "volume";
   if (exercise.tracksReps) return "reps";
   if (exercise.tracksTime) return "time";
   if (exercise.tracksWeight) return "weight";
@@ -37,8 +36,8 @@ export function ExerciseSummaryRow({
   const points = field
     ? (history ?? [])
         .map((set) => {
-          const value = field === "reps" ? set.reps : field === "time" ? set.timeSeconds : set.weightKg;
-          return value === null || value === undefined ? null : { performedAt: set.performedAt, value };
+          const value = valueForField(set, field);
+          return value === null ? null : { performedAt: set.performedAt, value };
         })
         .filter((p): p is { performedAt: Date; value: number } => p !== null)
     : [];
@@ -57,7 +56,7 @@ export function ExerciseSummaryRow({
           {exercise.userId !== null && <CustomBadge />}
         </p>
         <p className="text-sm text-muted">
-          {best !== null && field ? `Best: ${best} ${UNIT[field]}` : "No sets yet"}
+          {best !== null && field ? `Best: ${best} ${TRACKED_FIELD_UNIT[field]}` : "No sets yet"}
         </p>
       </div>
       {daily.length > 0 && <Sparkline values={daily.map((d) => d.best)} />}

@@ -54,7 +54,6 @@ export const STANDARD_EXERCISE_GROUPS: Record<string, string[]> = {
   "Push-Ups (Deep, Parallettes)": ["Push"],
   Dips: ["Push"],
   "Diamond Push-Ups": ["Push"],
-  "Lateral Raises": ["Push"],
   "Pull-Ups": ["Pull"],
   "Chin-Ups": ["Pull"],
   "Australian Pull-Ups (Dip Bars)": ["Pull"],

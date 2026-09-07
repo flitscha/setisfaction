@@ -1,16 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { aggregateByDay, type DailyAggregate } from "@/lib/stats";
+import {
+  aggregateByDay,
+  availableTrackedFields,
+  TRACKED_FIELD_LABEL,
+  valueForField,
+  type DailyAggregate,
+  type TrackedField,
+} from "@/lib/stats";
 import { formatDaysAgo, groupByLocalDay } from "@/lib/date";
 import { formatSetValue } from "@/lib/format-set";
 import { TrendChart } from "./trend-chart";
 import { ChartLegend, ComparisonTrendChart } from "./comparison-trend-chart";
 import { Card } from "@/components/ui/card";
 
-export type TrackedField = "reps" | "time" | "weight";
-
-const FIELD_LABEL: Record<TrackedField, string> = { reps: "Reps", time: "Time (s)", weight: "Weight (kg)" };
 const RECENT_DAYS_COUNT = 10;
 
 export type ProgressExercise = { tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean };
@@ -71,10 +75,11 @@ function ChartSection({
 }
 
 function dailyForField(history: ProgressSet[], field: TrackedField | null): DailyAggregate[] {
+  if (!field) return [];
   const points = history
     .map((set) => {
-      const value = field === "reps" ? set.reps : field === "time" ? set.timeSeconds : set.weightKg;
-      return value === null || value === undefined ? null : { performedAt: set.performedAt, value };
+      const value = valueForField(set, field);
+      return value === null ? null : { performedAt: set.performedAt, value };
     })
     .filter((point): point is { performedAt: Date; value: number } => point !== null);
   return aggregateByDay(points);
@@ -109,16 +114,16 @@ export function ExerciseProgressView({
 }) {
   const [field, setField] = useState<TrackedField | null>(null);
 
-  const availableFields = (["reps", "time", "weight"] as const).filter((f) => {
-    if (f === "reps") return exercise.tracksReps;
-    if (f === "time") return exercise.tracksTime;
-    return exercise.tracksWeight;
-  });
-  const activeField = field ?? availableFields[0] ?? null;
+  const availableFields = availableTrackedFields(exercise);
+  // Volume, when it's an option at all, is the more complete picture than
+  // reps or weight alone (see valueForField's comment) — defaults to it
+  // rather than to whichever tracked field happens to come first.
+  const defaultField = availableFields.includes("volume") ? "volume" : (availableFields[0] ?? null);
+  const activeField = field ?? defaultField;
 
   const daily = dailyForField(history, activeField);
   const comparisonDaily = comparison ? dailyForField(comparison.history, activeField) : null;
-  const unitLabel = activeField ? FIELD_LABEL[activeField].toLowerCase() : "";
+  const unitLabel = activeField ? TRACKED_FIELD_LABEL[activeField].toLowerCase() : "";
   const allTimeBest = daily.length > 0 ? Math.max(...daily.map((d) => d.best)) : null;
   const recentDays = groupByLocalDay(history, (set) => set.performedAt).slice(0, RECENT_DAYS_COUNT);
 
@@ -129,7 +134,7 @@ export function ExerciseProgressView({
           <Card>
             <p className="text-2xl font-semibold">
               {allTimeBest}
-              {activeField === "time" ? "s" : activeField === "weight" ? "kg" : ""}
+              {activeField === "time" ? "s" : activeField === "weight" || activeField === "volume" ? "kg" : ""}
             </p>
             <p className="text-sm text-muted">All-time best</p>
           </Card>
@@ -150,7 +155,7 @@ export function ExerciseProgressView({
                 activeField === f ? "bg-accent text-accent-foreground border-transparent" : ""
               }`}
             >
-              {FIELD_LABEL[f]}
+              {TRACKED_FIELD_LABEL[f]}
             </button>
           ))}
         </div>

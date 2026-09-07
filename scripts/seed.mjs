@@ -52,15 +52,6 @@ const EXERCISES = [
     repProgressionPerWeek: 1,
   },
   {
-    name: "Lateral Raises",
-    groups: ["Push"],
-    tracksReps: true,
-    tracksTime: false,
-    description: "Raise both arms out to the sides until roughly shoulder height, then lower with control.",
-    repBase: 12,
-    repProgressionPerWeek: 1,
-  },
-  {
     name: "Pull-Ups",
     groups: ["Pull"],
     tracksReps: true,

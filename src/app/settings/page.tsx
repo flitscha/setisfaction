@@ -1,20 +1,40 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { useViewAsUser } from "@/components/admin/view-as-context";
 import { ExerciseCategoryForm } from "@/components/settings/exercise-category-form";
 
+// Reachable from the top bar's gear icon on any page, not just one fixed
+// parent — router.back() (rather than a fixed BackLink href) is what
+// actually gets you back to wherever you came from.
 export default function SettingsPage() {
+  const router = useRouter();
   const isReadOnly = useViewAsUser() !== null;
   const utils = trpc.useUtils();
   const { data: categories, isLoading } = trpc.settings.exerciseCategories.useQuery();
 
   const updateCategories = trpc.settings.updateExerciseCategories.useMutation({
-    onSuccess: () => utils.settings.exerciseCategories.invalidate(),
+    onSuccess: async () => {
+      await utils.settings.exerciseCategories.invalidate();
+      // Brief pause so "Saved." is actually visible before leaving, rather
+      // than an instant nav that makes the save feel like it didn't happen.
+      setTimeout(() => router.back(), 600);
+    },
   });
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="flex items-center gap-1.5 py-2 -my-2 text-sm text-muted hover:text-foreground w-fit"
+      >
+        <ArrowLeft size={18} />
+        Back
+      </button>
+
       <h1 className="text-xl font-semibold px-1">Settings</h1>
 
       <section className="flex flex-col gap-3">
