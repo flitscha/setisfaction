@@ -1,10 +1,11 @@
 import { TRPCError } from "@trpc/server";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { emailToUsername, isSyntheticEmail, usernameToEmail } from "@/lib/username";
+import { isSyntheticEmail, usernameToEmail } from "@/lib/username";
 import { db } from "@/server/db";
 import { profiles } from "@/server/db/schema";
 import { applyStandardGrouping } from "@/server/db/standard-groups";
+import { resolveUsernames } from "@/server/db/usernames";
 import { protectedProcedure, publicProcedure, router } from "../trpc";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
@@ -30,17 +31,10 @@ async function isUsernameTaken(username: string): Promise<boolean> {
 type AuthUserRow = { id: string; email: string };
 
 export const authRouter = router({
-  // Prefers the profiles.username column; falls back to deriving it from a
-  // still-synthetic email for an account that hasn't gone through
-  // /verify-email yet (whose profiles.username may not be set).
   me: protectedProcedure.query(async ({ ctx }) => {
-    const [profile] = await db.select({ username: profiles.username }).from(profiles).where(eq(profiles.userId, ctx.userId));
-    if (profile?.username) {
-      return { username: profile.username };
-    }
-
     const [row] = (await db.execute(sql`select email from auth.users where id = ${ctx.userId}`)) as unknown as { email: string }[];
-    return { username: emailToUsername(row.email) };
+    const usernameByUserId = await resolveUsernames([{ id: ctx.userId, email: row.email }]);
+    return { username: usernameByUserId.get(ctx.userId) ?? "?" };
   }),
 
   // The login form only ever collects a username — this resolves the email
