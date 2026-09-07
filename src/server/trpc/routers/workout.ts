@@ -11,16 +11,31 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === "object" && error !== null && "code" in error && error.code === UNIQUE_VIOLATION;
 }
 
-const workoutExerciseInput = z.object({
-  exerciseId: z.string().uuid(),
-  setsCount: z.number().int().min(1).max(20),
-  targetReps: z.number().int().min(0).optional(),
-  targetTimeSeconds: z.number().int().min(0).optional(),
-  targetWeightKg: z.number().min(0).optional(),
-  // Rest between sets of this exercise — undefined ("define pause" left
-  // unchecked) means no fixed rest, rest as long as you want.
-  restSeconds: z.number().int().min(0).optional(),
-});
+// One entry per set — a null entry means "not fixed for that particular set,
+// log it during the workout instead," so a plan can mix a fixed pyramid
+// (10/8/6) with the occasional to-failure set. The whole field is omitted
+// when it was never defined at all (every set behaves as to-failure).
+const targetIntArray = z.array(z.number().int().min(0).nullable());
+const targetWeightArray = z.array(z.number().min(0).nullable());
+
+const workoutExerciseInput = z
+  .object({
+    exerciseId: z.string().uuid(),
+    setsCount: z.number().int().min(1).max(20),
+    targetReps: targetIntArray.optional(),
+    targetTimeSeconds: targetIntArray.optional(),
+    targetWeightKg: targetWeightArray.optional(),
+    // Rest between sets of this exercise — undefined ("define pause" left
+    // unchecked) means no fixed rest, rest as long as you want.
+    restSeconds: z.number().int().min(0).optional(),
+  })
+  .refine(
+    (value) =>
+      [value.targetReps, value.targetTimeSeconds, value.targetWeightKg].every(
+        (target) => target === undefined || target.length === value.setsCount,
+      ),
+    { message: "Each defined target must have exactly one entry per set." },
+  );
 
 const workoutInput = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),

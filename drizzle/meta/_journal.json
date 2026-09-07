@@ -78,6 +78,13 @@
       "when": 1788801593924,
       "tag": "0010_flaky_pandemic",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788804249438,
+      "tag": "0011_modern_firelord",
+      "breakpoints": true
     }
   ]
 }

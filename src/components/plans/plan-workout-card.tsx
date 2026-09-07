@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import type { inferRouterOutputs } from "@trpc/server";
+import { useRef, useState } from "react";
+import { Check, CalendarClock } from "lucide-react";
+import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "@/server/trpc/routers/_app";
 import { trpc } from "@/lib/trpc/client";
 import { Card } from "@/components/ui/card";
@@ -11,96 +12,229 @@ import { RestTimer } from "./rest-timer";
 
 type TodayWorkout = NonNullable<inferRouterOutputs<AppRouter>["trainingPlan"]["todayWorkout"]>;
 type PlanExercise = TodayWorkout["exercises"][number];
+type TodayWorkoutInput = inferRouterInputs<AppRouter>["trainingPlan"]["todayWorkout"];
 
-function targetsFor(exercise: PlanExercise): SetFormValues {
+function targetAt(values: (number | null)[] | null | undefined, slotIndex: number): number | null {
+  return values?.[slotIndex] ?? null;
+}
+
+function targetsForSlot(exercise: PlanExercise, slotIndex: number): SetFormValues {
   return {
-    reps: exercise.targetReps ?? undefined,
-    timeSeconds: exercise.targetTimeSeconds ?? undefined,
-    weightKg: exercise.targetWeightKg ?? undefined,
+    reps: targetAt(exercise.targetReps, slotIndex) ?? undefined,
+    timeSeconds: targetAt(exercise.targetTimeSeconds, slotIndex) ?? undefined,
+    weightKg: targetAt(exercise.targetWeightKg, slotIndex) ?? undefined,
   };
 }
 
-// True when at least one tracked field has no plan-defined target — the user
-// has to enter something before this set can be logged.
-function needsInput(exercise: PlanExercise) {
+// True when at least one tracked field has no plan-defined target for this
+// specific set — the user has to enter something before it can be logged.
+function needsInputForSlot(exercise: PlanExercise, slotIndex: number) {
   return (
-    (exercise.tracksReps && exercise.targetReps == null) ||
-    (exercise.tracksTime && exercise.targetTimeSeconds == null) ||
-    (exercise.tracksWeight && exercise.targetWeightKg == null)
+    (exercise.tracksReps && targetAt(exercise.targetReps, slotIndex) === null) ||
+    (exercise.tracksTime && targetAt(exercise.targetTimeSeconds, slotIndex) === null) ||
+    (exercise.tracksWeight && targetAt(exercise.targetWeightKg, slotIndex) === null)
   );
 }
 
-export function PlanWorkoutCard({ workout, isReadOnly }: { workout: TodayWorkout; isReadOnly: boolean }) {
+// Short label for one set's slot pill, e.g. "10", "10 · 20kg", or "?" for a
+// tracked field with no plan-defined target (logged freeform during the set).
+function slotLabel(exercise: PlanExercise, slotIndex: number): string {
+  const parts: string[] = [];
+  if (exercise.tracksReps) {
+    const v = targetAt(exercise.targetReps, slotIndex);
+    parts.push(v !== null ? String(v) : "?");
+  }
+  if (exercise.tracksTime) {
+    const v = targetAt(exercise.targetTimeSeconds, slotIndex);
+    parts.push(v !== null ? `${v}s` : "?s");
+  }
+  if (exercise.tracksWeight) {
+    const v = targetAt(exercise.targetWeightKg, slotIndex);
+    parts.push(v !== null ? `${v}kg` : "?kg");
+  }
+  return parts.join(" · ");
+}
+
+function SlotPill({ label, done }: { label: string; done: boolean }) {
+  return (
+    <span
+      className={
+        done
+          ? "inline-flex items-center gap-1 rounded-full bg-accent text-accent-foreground px-3 py-1 text-sm font-medium"
+          : "inline-flex items-center gap-1 rounded-full border border-card-border px-3 py-1 text-sm text-muted"
+      }
+    >
+      {done && <Check size={12} />}
+      {label}
+    </span>
+  );
+}
+
+export function PlanWorkoutCard({
+  workout,
+  isReadOnly,
+  queryInput,
+  todayRangeKey,
+}: {
+  workout: TodayWorkout;
+  isReadOnly: boolean;
+  // The exact variables object passed to the todayWorkout query, so this
+  // component can patch that same cache entry optimistically.
+  queryInput: TodayWorkoutInput;
+  todayRangeKey: { dayStart: Date; dayEnd: Date };
+}) {
   const utils = trpc.useUtils();
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
-  const [rest, setRest] = useState<{ exerciseName: string; seconds: number } | null>(null);
+  const [pendingExerciseId, setPendingExerciseId] = useState<string | null>(null);
+  const [rest, setRest] = useState<{ exerciseName: string; seconds: number; setNumber: number; setsCount: number } | null>(
+    null,
+  );
+  // A ref (not state) so a double-tap within the same synchronous event —
+  // before React has re-rendered the disabled button — is still blocked.
+  // Someone unsure whether their first tap registered is exactly who'd tap
+  // twice fast enough to slip past a state-only check.
+  const loggingRef = useRef<Set<string>>(new Set());
 
   const createSet = trpc.set.create.useMutation({
-    onSuccess: async () => {
-      await Promise.all([
-        utils.trainingPlan.todayWorkout.invalidate(),
-        utils.set.listByDay.invalidate(),
-        utils.stats.aggregates.invalidate(),
-      ]);
+    // Optimistic on both caches this affects: the plan checklist's own
+    // progress count, and the normal per-exercise card below (which shows
+    // the actual logged value as a chip) — so checking off a set feels
+    // instant on both surfaces instead of waiting on the round trip.
+    onMutate: async (input) => {
+      await Promise.all([utils.trainingPlan.todayWorkout.cancel(queryInput), utils.set.listByDay.cancel(todayRangeKey)]);
+      const previousWorkout = utils.trainingPlan.todayWorkout.getData(queryInput);
+      const previousSets = utils.set.listByDay.getData(todayRangeKey);
+      const exercise = workout.exercises.find((e) => e.exerciseId === input.exerciseId);
+
+      utils.trainingPlan.todayWorkout.setData(queryInput, (old) => {
+        if (!old) return old;
+        const exercises = old.exercises.map((e) =>
+          e.exerciseId === input.exerciseId ? { ...e, loggedCount: Math.min(e.setsCount, e.loggedCount + 1) } : e,
+        );
+        return { ...old, exercises, isComplete: exercises.every((e) => e.loggedCount >= e.setsCount) };
+      });
+
+      if (exercise) {
+        utils.set.listByDay.setData(todayRangeKey, (old) => [
+          ...(old ?? []),
+          {
+            id: `optimistic-${crypto.randomUUID()}`,
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            tracksReps: exercise.tracksReps,
+            tracksTime: exercise.tracksTime,
+            tracksWeight: exercise.tracksWeight,
+            performedAt: new Date(),
+            reps: input.reps ?? null,
+            timeSeconds: input.timeSeconds ?? null,
+            weightKg: input.weightKg ?? null,
+            isPr: false,
+          },
+        ]);
+      }
+
+      return { previousWorkout, previousSets };
+    },
+    onError: (_error, _input, context) => {
+      if (context?.previousWorkout !== undefined) utils.trainingPlan.todayWorkout.setData(queryInput, context.previousWorkout);
+      if (context?.previousSets) utils.set.listByDay.setData(todayRangeKey, context.previousSets);
+    },
+    onSuccess: () => {
+      utils.stats.aggregates.invalidate();
+    },
+    onSettled: () => {
+      utils.trainingPlan.todayWorkout.invalidate();
+      utils.set.listByDay.invalidate();
     },
   });
 
-  function logSet(exercise: PlanExercise, values: SetFormValues) {
+  function logSet(exercise: PlanExercise, slotIndex: number, values: SetFormValues) {
+    if (loggingRef.current.has(exercise.id)) return;
+    loggingRef.current.add(exercise.id);
+    setPendingExerciseId(exercise.id);
+
     createSet.mutate(
       { exerciseId: exercise.exerciseId, ...values },
       {
         onSuccess: () => {
           setExpandedExerciseId(null);
           if (exercise.restSeconds != null) {
-            setRest({ exerciseName: exercise.exerciseName, seconds: exercise.restSeconds });
+            setRest({
+              exerciseName: exercise.exerciseName,
+              seconds: exercise.restSeconds,
+              setNumber: slotIndex + 1,
+              setsCount: exercise.setsCount,
+            });
           }
+        },
+        onSettled: () => {
+          loggingRef.current.delete(exercise.id);
+          setPendingExerciseId(null);
         },
       },
     );
   }
 
   function handleLogNext(exercise: PlanExercise) {
-    if (needsInput(exercise)) {
+    const slotIndex = exercise.loggedCount;
+    if (slotIndex >= exercise.setsCount) return;
+
+    if (needsInputForSlot(exercise, slotIndex)) {
       setExpandedExerciseId(exercise.id);
-    } else {
-      logSet(exercise, targetsFor(exercise));
+      return;
     }
+    logSet(exercise, slotIndex, targetsForSlot(exercise, slotIndex));
   }
 
   return (
     <>
       <Card className="flex flex-col gap-4">
-        <div>
-          <p className="font-medium">{workout.isCatchUp ? `Catch up: ${workout.workoutName}` : workout.workoutName}</p>
-          {workout.isCatchUp && <p className="text-sm text-muted">Missed yesterday</p>}
+        <div className="flex items-center gap-2">
+          <CalendarClock size={18} className="text-accent shrink-0" />
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-wide text-muted font-medium">
+              {workout.isCatchUp ? "Missed yesterday — catch up" : "Today's plan"}
+            </p>
+            <p className="font-semibold truncate">{workout.workoutName}</p>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           {workout.exercises.map((exercise) => {
             const done = exercise.loggedCount >= exercise.setsCount;
             const isExpanded = expandedExerciseId === exercise.id;
+            const isPending = pendingExerciseId === exercise.id;
+            const nextSlot = exercise.loggedCount;
 
             return (
               <div key={exercise.id} className="border-t border-card-border pt-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className={done ? "text-muted line-through" : ""}>{exercise.exerciseName}</span>
-                  <span className="text-sm text-muted whitespace-nowrap">
-                    {exercise.loggedCount}/{exercise.setsCount} sets
-                  </span>
+                <p className="font-medium">{exercise.exerciseName}</p>
+
+                <div className="flex flex-wrap gap-2">
+                  {Array.from({ length: exercise.setsCount }, (_, i) => (
+                    <SlotPill key={i} label={slotLabel(exercise, i)} done={i < exercise.loggedCount} />
+                  ))}
                 </div>
 
-                {!done && !isReadOnly && !isExpanded && (
-                  <Button variant="secondary" onClick={() => handleLogNext(exercise)} disabled={createSet.isPending}>
-                    Log set
-                  </Button>
+                {done ? (
+                  <p className="text-sm text-accent flex items-center gap-1">
+                    <Check size={14} /> All sets done
+                  </p>
+                ) : (
+                  !isReadOnly &&
+                  !isExpanded && (
+                    <Button variant="secondary" onClick={() => handleLogNext(exercise)} disabled={isPending}>
+                      {isPending ? "Logging…" : `Log set ${nextSlot + 1} of ${exercise.setsCount}`}
+                    </Button>
+                  )
                 )}
 
                 {isExpanded && (
                   <SetForm
                     exercise={exercise}
-                    fixedValues={targetsFor(exercise)}
-                    onSubmit={(values) => logSet(exercise, values)}
-                    isSubmitting={createSet.isPending}
+                    fixedValues={targetsForSlot(exercise, nextSlot)}
+                    onSubmit={(values) => logSet(exercise, nextSlot, values)}
+                    isSubmitting={isPending}
                     onCancel={() => setExpandedExerciseId(null)}
                   />
                 )}
@@ -110,7 +244,15 @@ export function PlanWorkoutCard({ workout, isReadOnly }: { workout: TodayWorkout
         </div>
       </Card>
 
-      {rest && <RestTimer seconds={rest.seconds} exerciseName={rest.exerciseName} onDone={() => setRest(null)} />}
+      {rest && (
+        <RestTimer
+          exerciseName={rest.exerciseName}
+          seconds={rest.seconds}
+          setNumber={rest.setNumber}
+          setsCount={rest.setsCount}
+          onDone={() => setRest(null)}
+        />
+      )}
     </>
   );
 }

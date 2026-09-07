@@ -27,14 +27,15 @@ export default function TodayPage() {
   const { start: yesterdayStart, end: yesterdayEnd } = useMemo(() => getLocalDayRange(yesterdayRef), [yesterdayRef]);
   const utils = trpc.useUtils();
   const { data: todaySets } = trpc.set.listByDay.useQuery({ dayStart: start, dayEnd: end });
-  const { data: planWorkout } = trpc.trainingPlan.todayWorkout.useQuery({
+  const planWorkoutInput = {
     todayWeekday: now.getDay(),
     yesterdayWeekday: yesterdayRef.getDay(),
     todayStart: start,
     todayEnd: end,
     yesterdayStart,
     yesterdayEnd,
-  });
+  };
+  const { data: planWorkout } = trpc.trainingPlan.todayWorkout.useQuery(planWorkoutInput);
 
   const [showPicker, setShowPicker] = useState(false);
   const [activeExercise, setActiveExercise] = useState<PickableExercise | null>(null);
@@ -77,7 +78,13 @@ export default function TodayPage() {
       await utils.stats.aggregates.invalidate();
       setActiveExercise(null);
     },
-    onSettled: () => utils.set.listByDay.invalidate(),
+    // Also refreshes the plan checklist above: a manually-logged set for an
+    // exercise that's part of today's plan counts toward it too, so its
+    // progress must stay in sync regardless of which flow created the set.
+    onSettled: () => {
+      utils.set.listByDay.invalidate();
+      utils.trainingPlan.todayWorkout.invalidate();
+    },
   });
 
   const updateSet = trpc.set.update.useMutation({
@@ -89,7 +96,7 @@ export default function TodayPage() {
 
   const deleteSet = trpc.set.delete.useMutation({
     onSuccess: async () => {
-      await utils.set.listByDay.invalidate();
+      await Promise.all([utils.set.listByDay.invalidate(), utils.trainingPlan.todayWorkout.invalidate()]);
       setEditingSet(null);
     },
   });
@@ -159,12 +166,23 @@ export default function TodayPage() {
     <main className="flex-1 p-4 pb-24 max-w-md mx-auto w-full flex flex-col gap-4">
       <h1 className="text-xl font-semibold px-1">Today</h1>
 
-      {planWorkout && <PlanWorkoutCard workout={planWorkout} isReadOnly={isReadOnly} />}
+      {planWorkout && (
+        <PlanWorkoutCard
+          workout={planWorkout}
+          isReadOnly={isReadOnly}
+          queryInput={planWorkoutInput}
+          todayRangeKey={dayRangeKey}
+        />
+      )}
 
       {displayGroups.length === 0 && (
         <p className="text-muted px-1">
           {isReadOnly ? "No sets logged today." : "No sets logged yet today. Tap + to get started."}
         </p>
+      )}
+
+      {planWorkout && displayGroups.length > 0 && (
+        <p className="text-xs uppercase tracking-wide text-muted font-medium px-1">Logged today</p>
       )}
 
       <div className="flex flex-col gap-3">

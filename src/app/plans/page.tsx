@@ -5,12 +5,18 @@ import { Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { BackLink } from "@/components/ui/back-link";
+import { Button } from "@/components/ui/button";
 
 export default function PlansPage() {
   const isReadOnly = useViewAsUser() !== null;
   const appPath = useAppPath();
+  const utils = trpc.useUtils();
   const { data: workouts, isLoading: workoutsLoading } = trpc.workout.list.useQuery();
   const { data: plans, isLoading: plansLoading } = trpc.trainingPlan.list.useQuery();
+
+  const setActive = trpc.trainingPlan.setActive.useMutation({
+    onSuccess: () => utils.trainingPlan.list.invalidate(),
+  });
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
@@ -66,14 +72,27 @@ export default function PlansPage() {
         )}
         <div className="flex flex-col gap-2">
           {plans?.map((plan) => (
-            <Link
+            <div
               key={plan.id}
-              href={appPath(`/plans/${plan.id}`)}
-              className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:brightness-95 dark:hover:brightness-125"
+              className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3"
             >
-              <span>{plan.name}</span>
-              {plan.isActive && <span className="text-sm text-accent font-medium whitespace-nowrap">✓ Active</span>}
-            </Link>
+              <Link href={appPath(`/plans/${plan.id}`)} className="flex-1 min-w-0 hover:underline">
+                <span className="truncate block">{plan.name}</span>
+              </Link>
+              {plan.isActive ? (
+                <span className="text-sm text-accent font-medium whitespace-nowrap">✓ Active</span>
+              ) : (
+                !isReadOnly && (
+                  <Button
+                    variant="secondary"
+                    onClick={() => setActive.mutate({ id: plan.id })}
+                    disabled={setActive.isPending}
+                  >
+                    Activate
+                  </Button>
+                )
+              )}
+            </div>
           ))}
         </div>
       </section>

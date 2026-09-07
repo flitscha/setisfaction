@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
-import { WorkoutForm, serializeWorkoutValues, type WorkoutFormValues } from "@/components/plans/workout-form";
+import { WorkoutForm, serializeWorkoutValues, targetDraftFromArray, type WorkoutFormValues } from "@/components/plans/workout-form";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
 
@@ -56,9 +56,9 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
       tracksTime: e.tracksTime,
       tracksWeight: e.tracksWeight,
       setsCount: String(e.setsCount),
-      targetReps: e.targetReps !== null ? String(e.targetReps) : "",
-      targetTimeSeconds: e.targetTimeSeconds !== null ? String(e.targetTimeSeconds) : "",
-      targetWeightKg: e.targetWeightKg !== null ? String(e.targetWeightKg) : "",
+      reps: targetDraftFromArray(e.targetReps, e.setsCount),
+      time: targetDraftFromArray(e.targetTimeSeconds, e.setsCount),
+      weight: targetDraftFromArray(e.targetWeightKg, e.setsCount),
       definePause: e.restSeconds !== null,
       restSeconds: e.restSeconds !== null ? String(e.restSeconds) : "60",
     })),

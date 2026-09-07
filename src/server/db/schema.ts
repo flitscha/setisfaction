@@ -3,6 +3,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   numeric,
   pgTable,
   primaryKey,
@@ -162,12 +163,17 @@ export const workouts = pgTable(
   (table) => [uniqueIndex("workouts_user_id_lower_name_idx").on(table.userId, sql`lower(${table.name})`)],
 );
 
-// One exercise slot within a workout. Every target field is optional and
-// independent (matching sets.reps/timeSeconds/weightKg's own nullability) —
-// null means "not fixed by the plan, log it during the workout instead of
-// carrying it over automatically." restSeconds null means "no fixed rest
-// between sets of this exercise, rest as long as you want" (the "define
-// pause" checkbox unchecked, in the UI).
+// One exercise slot within a workout. Each target field, when set at all, is
+// an array with one entry per set (length === setsCount) rather than a single
+// number — this is what lets a plan define a pyramid like reps 10/8/6 instead
+// of the same number for every set. A null *entry* means "not fixed for that
+// particular set, log it during the workout instead"; the whole column being
+// null means the field was never defined for this exercise at all (every set
+// behaves as if to muscle failure). Same independent-and-optional shape as
+// sets.reps/timeSeconds/weightKg, just per-set. restSeconds stays a single
+// value (not per-set) — null means "no fixed rest between sets of this
+// exercise, rest as long as you want" (the "define pause" checkbox
+// unchecked, in the UI).
 export const workoutExercises = pgTable(
   "workout_exercises",
   {
@@ -180,9 +186,9 @@ export const workoutExercises = pgTable(
       .references(() => exercises.id, { onDelete: "cascade" }),
     position: integer("position").notNull(),
     setsCount: integer("sets_count").notNull(),
-    targetReps: integer("target_reps"),
-    targetTimeSeconds: integer("target_time_seconds"),
-    targetWeightKg: numeric("target_weight_kg", { precision: 6, scale: 2, mode: "number" }),
+    targetReps: jsonb("target_reps").$type<(number | null)[]>(),
+    targetTimeSeconds: jsonb("target_time_seconds").$type<(number | null)[]>(),
+    targetWeightKg: jsonb("target_weight_kg").$type<(number | null)[]>(),
     restSeconds: integer("rest_seconds"),
   },
   (table) => [index("workout_exercises_workout_id_idx").on(table.workoutId)],
