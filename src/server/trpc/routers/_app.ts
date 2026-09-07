@@ -8,6 +8,8 @@ import { groupRouter } from "./group";
 import { healthRouter } from "./health";
 import { setRouter } from "./set";
 import { statsRouter } from "./stats";
+import { trainingPlanRouter } from "./training-plan";
+import { workoutRouter } from "./workout";
 
 export const appRouter = router({
   health: healthRouter,
@@ -19,6 +21,8 @@ export const appRouter = router({
   group: groupRouter,
   set: setRouter,
   stats: statsRouter,
+  workout: workoutRouter,
+  trainingPlan: trainingPlanRouter,
 });
 
 export type AppRouter = typeof appRouter;

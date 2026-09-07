@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Layers, Plus } from "lucide-react";
+import { CalendarClock, Layers, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
 import { searchItems } from "@/lib/search";
@@ -35,6 +35,13 @@ export default function ExercisesPage() {
           >
             <Layers size={18} />
             Groups
+          </Link>
+          <Link
+            href={appPath("/plans")}
+            className="flex items-center gap-1.5 rounded-lg border border-card-border px-3 py-2 text-sm"
+          >
+            <CalendarClock size={18} />
+            Plans
           </Link>
           {!isReadOnly && (
             <Link

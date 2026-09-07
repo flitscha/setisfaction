@@ -146,6 +146,83 @@ export const chatMessages = pgTable(
   (table) => [index("chat_messages_created_at_idx").on(table.createdAt)],
 );
 
+// A reusable workout template (e.g. "Pull Day") — the exercises/sets/targets
+// to do, not tied to any specific calendar date. Called "workout" rather
+// than "training day" specifically to not collide with that phrase's
+// existing meaning elsewhere (a calendar date with at least one logged set —
+// see stats.aggregates' totalTrainingDays).
+export const workouts = pgTable(
+  "workouts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("workouts_user_id_lower_name_idx").on(table.userId, sql`lower(${table.name})`)],
+);
+
+// One exercise slot within a workout. Every target field is optional and
+// independent (matching sets.reps/timeSeconds/weightKg's own nullability) —
+// null means "not fixed by the plan, log it during the workout instead of
+// carrying it over automatically." restSeconds null means "no fixed rest
+// between sets of this exercise, rest as long as you want" (the "define
+// pause" checkbox unchecked, in the UI).
+export const workoutExercises = pgTable(
+  "workout_exercises",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    workoutId: uuid("workout_id")
+      .notNull()
+      .references(() => workouts.id, { onDelete: "cascade" }),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercises.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    setsCount: integer("sets_count").notNull(),
+    targetReps: integer("target_reps"),
+    targetTimeSeconds: integer("target_time_seconds"),
+    targetWeightKg: numeric("target_weight_kg", { precision: 6, scale: 2, mode: "number" }),
+    restSeconds: integer("rest_seconds"),
+  },
+  (table) => [index("workout_exercises_workout_id_idx").on(table.workoutId)],
+);
+
+// A named weekly schedule of workouts. A user can have several (e.g. a
+// "deload" week alongside their normal one) but at most one active at a
+// time — enforced by the partial unique index below, not just app code.
+export const trainingPlans = pgTable(
+  "training_plans",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull(),
+    name: text("name").notNull(),
+    isActive: boolean("is_active").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("training_plans_user_id_lower_name_idx").on(table.userId, sql`lower(${table.name})`),
+    uniqueIndex("training_plans_one_active_per_user_idx").on(table.userId).where(sql`${table.isActive}`),
+  ],
+);
+
+// Which workout (if any) falls on which weekday of a plan — a weekday with
+// no row here is a rest day. weekday matches JS's Date#getDay() (0 = Sunday
+// .. 6 = Saturday) so the Today page can look itself up with no translation.
+export const trainingPlanWorkouts = pgTable(
+  "training_plan_workouts",
+  {
+    trainingPlanId: uuid("training_plan_id")
+      .notNull()
+      .references(() => trainingPlans.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(),
+    workoutId: uuid("workout_id")
+      .notNull()
+      .references(() => workouts.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.trainingPlanId, table.weekday] })],
+);
+
 export const sets = pgTable(
   "sets",
   {
