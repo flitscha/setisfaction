@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
-import { BackLink } from "@/components/ui/back-link";
 import { Button } from "@/components/ui/button";
 
 export default function PlansPage() {
@@ -20,7 +19,6 @@ export default function PlansPage() {
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
-      <BackLink href={appPath("/exercises")} label="Exercises" />
       <h1 className="text-xl font-semibold px-1">Training plans</h1>
 
       <section className="flex flex-col gap-3">

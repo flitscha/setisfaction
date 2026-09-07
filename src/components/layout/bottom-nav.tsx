@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarCheck, LineChart } from "lucide-react";
+import { CalendarCheck, CalendarClock, LineChart } from "lucide-react";
 import { isChromelessPath } from "@/lib/auth-pages";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
 
 const TABS = [
   { path: "/today", label: "Today", icon: CalendarCheck },
+  { path: "/plans", label: "Plans", icon: CalendarClock },
   { path: "/exercises", label: "Exercises", icon: PullUpIcon },
   { path: "/stats", label: "Stats", icon: LineChart },
 ];

@@ -36,23 +36,33 @@ function needsInputForSlot(exercise: PlanExercise, slotIndex: number) {
   );
 }
 
-// Short label for one set's slot pill, e.g. "10", "10 · 20kg", or "?" for a
-// tracked field with no plan-defined target (logged freeform during the set).
+// Short label for one set's slot pill, e.g. "10", "10 · 20kg", or plainly
+// "Set 2" when nothing at all is fixed for it (the common to-failure case —
+// a run of bare question marks read as broken/uncertain rather than "log it
+// yourself"). A field with no target only gets its own "–" when some *other*
+// tracked field for the same set does have one, so a real value is never
+// lost in a sea of placeholders.
 function slotLabel(exercise: PlanExercise, slotIndex: number): string {
   const parts: string[] = [];
+  let anyDefined = false;
+
   if (exercise.tracksReps) {
     const v = targetAt(exercise.targetReps, slotIndex);
-    parts.push(v !== null ? String(v) : "?");
+    if (v !== null) anyDefined = true;
+    parts.push(v !== null ? String(v) : "–");
   }
   if (exercise.tracksTime) {
     const v = targetAt(exercise.targetTimeSeconds, slotIndex);
-    parts.push(v !== null ? `${v}s` : "?s");
+    if (v !== null) anyDefined = true;
+    parts.push(v !== null ? `${v}s` : "–");
   }
   if (exercise.tracksWeight) {
     const v = targetAt(exercise.targetWeightKg, slotIndex);
-    parts.push(v !== null ? `${v}kg` : "?kg");
+    if (v !== null) anyDefined = true;
+    parts.push(v !== null ? `${v}kg` : "–");
   }
-  return parts.join(" · ");
+
+  return anyDefined ? parts.join(" · ") : `Set ${slotIndex + 1}`;
 }
 
 function SlotPill({ label, done }: { label: string; done: boolean }) {

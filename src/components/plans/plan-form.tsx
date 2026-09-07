@@ -89,11 +89,20 @@ export function PlanForm({
             <select
               value={schedule[weekday] ?? ""}
               onChange={(e) => setDay(weekday, e.target.value || null)}
-              className="border border-card-border rounded-lg px-2 py-1.5 bg-transparent min-h-11"
+              // Explicit bg/text color (not bg-transparent) — the dropdown's
+              // OPEN option list is rendered by the OS, not styled by the
+              // rest of this page's CSS, so a transparent select left it
+              // inheriting dark mode's light text color over the browser's
+              // own white popup background (unreadable). Chrome/Firefox/Edge
+              // also honor color/background set directly on <option>, which
+              // is what actually fixes the popup itself.
+              className="border border-card-border rounded-lg px-2 py-1.5 bg-card text-foreground min-h-11"
             >
-              <option value="">Rest day</option>
+              <option value="" className="bg-card text-foreground">
+                Rest day
+              </option>
               {workouts?.map((workout) => (
-                <option key={workout.id} value={workout.id}>
+                <option key={workout.id} value={workout.id} className="bg-card text-foreground">
                   {workout.name}
                 </option>
               ))}
