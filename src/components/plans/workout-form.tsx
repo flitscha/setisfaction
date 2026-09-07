@@ -46,15 +46,20 @@ export function targetDraftFromArray(saved: (number | null)[] | null, setsCount:
   return { defined: true, sameForAllSets: allSame, value: allSame ? perSet[0] : "", perSet };
 }
 
-function serializeTarget(target: TargetDraft, setsCount: number): (number | null)[] | undefined {
+// `round` guards against the "8.5 reps" case: a number input's inputMode
+// only hints at a mobile numeric keypad, it doesn't actually block a decimal
+// being typed, and reps/time are meant to be whole numbers server-side —
+// without this, submitting one would fail on the server's int validation
+// with a raw Zod message instead of just doing the sensible thing.
+function serializeTarget(target: TargetDraft, setsCount: number, round: (n: number) => number): (number | null)[] | undefined {
   if (!target.defined) return undefined;
   if (target.sameForAllSets) {
     if (target.value === "") return undefined;
-    return Array(setsCount).fill(Number(target.value));
+    return Array(setsCount).fill(round(Number(target.value)));
   }
   const perSet = resizePerSet(target.perSet, setsCount);
   if (perSet.every((v) => v === "")) return undefined;
-  return perSet.map((v) => (v === "" ? null : Number(v)));
+  return perSet.map((v) => (v === "" ? null : round(Number(v))));
 }
 
 export type WorkoutExerciseDraft = {
@@ -101,14 +106,14 @@ export function serializeWorkoutValues(values: WorkoutFormValues) {
   return {
     name: values.name.trim(),
     exercises: values.exercises.map((e) => {
-      const setsCount = Number(e.setsCount);
+      const setsCount = Math.round(Number(e.setsCount));
       return {
         exerciseId: e.exerciseId,
         setsCount,
-        targetReps: e.tracksReps ? serializeTarget(e.reps, setsCount) : undefined,
-        targetTimeSeconds: e.tracksTime ? serializeTarget(e.time, setsCount) : undefined,
-        targetWeightKg: e.tracksWeight ? serializeTarget(e.weight, setsCount) : undefined,
-        restSeconds: e.definePause && e.restSeconds !== "" ? Number(e.restSeconds) : undefined,
+        targetReps: e.tracksReps ? serializeTarget(e.reps, setsCount, Math.round) : undefined,
+        targetTimeSeconds: e.tracksTime ? serializeTarget(e.time, setsCount, Math.round) : undefined,
+        targetWeightKg: e.tracksWeight ? serializeTarget(e.weight, setsCount, (n) => Math.round(n * 100) / 100) : undefined,
+        restSeconds: e.definePause && e.restSeconds !== "" ? Math.round(Number(e.restSeconds)) : undefined,
       };
     }),
   };
@@ -368,6 +373,16 @@ export function WorkoutForm({
         <Modal title="Add exercise" onClose={() => setShowPicker(false)}>
           <ExercisePicker
             onSelect={(exercise) => {
+              // The same exercise twice in one workout would share a single
+              // loggedCount on the Today checklist (it's counted by exercise
+              // id, not by which slot it came from), so both entries would
+              // silently complete together — confusing rather than useful.
+              if (exercises.some((e) => e.exerciseId === exercise.id)) {
+                setValidationError(`"${exercise.name}" is already in this workout.`);
+                setShowPicker(false);
+                return;
+              }
+              setValidationError(null);
               setExercises((prev) => [...prev, draftFromExercise(exercise)]);
               setShowPicker(false);
             }}

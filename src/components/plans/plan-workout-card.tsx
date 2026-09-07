@@ -168,7 +168,10 @@ export function PlanWorkoutCard({
       {
         onSuccess: () => {
           setExpandedExerciseId(null);
-          if (exercise.restSeconds != null) {
+          // A falsy check, not just != null: restSeconds: 0 means the rest
+          // timer would show for an instant and auto-dismiss itself, which
+          // is a pointless flash rather than a real rest period.
+          if (exercise.restSeconds) {
             setRest({
               exerciseName: exercise.exerciseName,
               seconds: exercise.restSeconds,

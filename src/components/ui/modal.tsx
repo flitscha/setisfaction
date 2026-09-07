@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
 export function Modal({
@@ -23,7 +24,14 @@ export function Modal({
     };
   }, []);
 
-  return (
+  // Portaled to the document body rather than rendered inline: a modal
+  // opened from inside a <form> (the workout editor's exercise picker, e.g.)
+  // would otherwise leave its content nested inside that form in the DOM —
+  // any button in there without an explicit type="button" defaults to
+  // type="submit" and silently submits (and closes) the whole page behind
+  // it on click, which is exactly what picking an exercise or expanding a
+  // group used to do before this existed.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 p-4 pt-[8vh]"
       onClick={onClose}
@@ -34,12 +42,13 @@ export function Modal({
       >
         <div className="flex items-center justify-between mb-3">
           <p className="font-medium">{title}</p>
-          <button onClick={onClose} aria-label="Close" className="p-2 -m-2 text-muted hover:text-foreground">
+          <button type="button" onClick={onClose} aria-label="Close" className="p-2 -m-2 text-muted hover:text-foreground">
             <X size={22} />
           </button>
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

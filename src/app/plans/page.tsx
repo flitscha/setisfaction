@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { Button } from "@/components/ui/button";
@@ -43,9 +43,10 @@ export default function PlansPage() {
             <Link
               key={workout.id}
               href={appPath(`/plans/workouts/${workout.id}`)}
-              className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 hover:brightness-95 dark:hover:brightness-125"
+              className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:brightness-95 dark:hover:brightness-125"
             >
-              {workout.name}
+              <span className="truncate">{workout.name}</span>
+              {!isReadOnly && <Pencil size={16} className="text-muted shrink-0" />}
             </Link>
           ))}
         </div>
@@ -68,14 +69,18 @@ export default function PlansPage() {
         {plans?.length === 0 && (
           <p className="text-sm text-muted px-1">No plans yet — a plan assigns a workout to each day of the week.</p>
         )}
+        {plans && plans.length > 0 && (
+          <p className="text-sm text-muted px-1">Only the active plan shows up on Today.</p>
+        )}
         <div className="flex flex-col gap-2">
           {plans?.map((plan) => (
             <div
               key={plan.id}
               className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3"
             >
-              <Link href={appPath(`/plans/${plan.id}`)} className="flex-1 min-w-0 hover:underline">
-                <span className="truncate block">{plan.name}</span>
+              <Link href={appPath(`/plans/${plan.id}`)} className="flex-1 min-w-0 flex items-center gap-2 hover:underline">
+                <span className="truncate">{plan.name}</span>
+                {!isReadOnly && <Pencil size={14} className="text-muted shrink-0" />}
               </Link>
               {plan.isActive ? (
                 <span className="text-sm text-accent font-medium whitespace-nowrap">✓ Active</span>

@@ -44,6 +44,7 @@ export function CollapsibleSection({
   return (
     <div className="flex flex-col gap-2">
       <button
+        type="button"
         onClick={toggle}
         aria-expanded={open}
         className="flex items-center gap-1.5 py-2.5 px-1 border-b border-card-border w-full text-muted"

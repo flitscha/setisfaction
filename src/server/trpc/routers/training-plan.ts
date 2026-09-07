@@ -115,7 +115,21 @@ export const trainingPlanRouter = router({
 
     try {
       return await db.transaction(async (tx) => {
-        const [plan] = await tx.insert(trainingPlans).values({ userId: ctx.userId, name: input.name }).returning();
+        // A brand-new plan starts active when the user doesn't already have
+        // one — otherwise the very first plan someone builds would need a
+        // second, separate "activate" step before it does anything on
+        // Today, which isn't obvious the first time through this feature.
+        // Creating an alternate/deload plan later never overrides an
+        // existing active one this way.
+        const [existingActive] = await tx
+          .select({ id: trainingPlans.id })
+          .from(trainingPlans)
+          .where(and(eq(trainingPlans.userId, ctx.userId), eq(trainingPlans.isActive, true)));
+
+        const [plan] = await tx
+          .insert(trainingPlans)
+          .values({ userId: ctx.userId, name: input.name, isActive: !existingActive })
+          .returning();
         const scheduledDays = onlyScheduledDays(input.schedule);
         if (scheduledDays.length > 0) {
           await tx

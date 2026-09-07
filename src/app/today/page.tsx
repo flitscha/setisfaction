@@ -175,7 +175,9 @@ export default function TodayPage() {
         />
       )}
 
-      {displayGroups.length === 0 && (
+      {/* Redundant once the plan card is showing — its pills already say
+          nothing's logged yet, and it's the more useful next step anyway. */}
+      {!planWorkout && displayGroups.length === 0 && (
         <p className="text-muted px-1">
           {isReadOnly ? "No sets logged today." : "No sets logged yet today. Tap + to get started."}
         </p>

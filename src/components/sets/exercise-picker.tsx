@@ -20,6 +20,7 @@ const TOP_COUNT = 7;
 function ExerciseButton({ exercise, onSelect }: { exercise: PickableExercise; onSelect: (exercise: PickableExercise) => void }) {
   return (
     <button
+      type="button"
       onClick={() => onSelect(exercise)}
       className="text-left rounded-lg border border-card-border px-3 py-2.5 min-h-11 hover:bg-card w-full"
     >

@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { and, count, eq, inArray, isNotNull, isNull, notInArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { exerciseGroupMembers, exerciseGroups, exercises, sets } from "@/server/db/schema";
+import { exerciseGroupMembers, exerciseGroups, exercises, sets, workoutExercises, workouts } from "@/server/db/schema";
 import { readProcedure, router, writeProcedure } from "../trpc";
 
 const exerciseFields = z.object({
@@ -270,6 +270,26 @@ export const exerciseRouter = router({
             .set({ exerciseId: fork.id })
             .where(and(eq(sets.exerciseId, standard.id), eq(sets.userId, ctx.userId)));
 
+          // Same move for this user's own workout slots — without it, a
+          // workout built around the standard exercise would keep pointing
+          // at the one just forked away from, so sets logged through it
+          // would land under the wrong exercise's history.
+          const ownWorkouts = await tx.select({ id: workouts.id }).from(workouts).where(eq(workouts.userId, ctx.userId));
+          if (ownWorkouts.length > 0) {
+            await tx
+              .update(workoutExercises)
+              .set({ exerciseId: fork.id })
+              .where(
+                and(
+                  eq(workoutExercises.exerciseId, standard.id),
+                  inArray(
+                    workoutExercises.workoutId,
+                    ownWorkouts.map((w) => w.id),
+                  ),
+                ),
+              );
+          }
+
           if (groupIds.length > 0) {
             await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: fork.id, groupId })));
           }
@@ -305,6 +325,23 @@ export const exerciseRouter = router({
         .update(sets)
         .set({ exerciseId: forkedFromId })
         .where(and(eq(sets.exerciseId, fork.id), eq(sets.userId, ctx.userId)));
+
+      const ownWorkouts = await tx.select({ id: workouts.id }).from(workouts).where(eq(workouts.userId, ctx.userId));
+      if (ownWorkouts.length > 0) {
+        await tx
+          .update(workoutExercises)
+          .set({ exerciseId: forkedFromId })
+          .where(
+            and(
+              eq(workoutExercises.exerciseId, fork.id),
+              inArray(
+                workoutExercises.workoutId,
+                ownWorkouts.map((w) => w.id),
+              ),
+            ),
+          );
+      }
+
       await tx.delete(exercises).where(eq(exercises.id, fork.id));
     });
 
