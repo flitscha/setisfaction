@@ -15,7 +15,6 @@ const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparen
 export function SetForm({
   exercise,
   initialValues,
-  fixedValues,
   onSubmit,
   isSubmitting,
   onCancel,
@@ -23,19 +22,19 @@ export function SetForm({
   isDeleting,
 }: {
   exercise: { tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean };
+  // Pre-fills each tracked field's input (still fully editable) — used both
+  // for editing a past set and for a plan-driven set, where it's the plan's
+  // target value the user can tweak before confirming (e.g. one extra rep).
   initialValues?: SetFormValues;
-  // Plan-defined target values: no input is rendered for a field present
-  // here, and its value is merged straight into the submitted set.
-  fixedValues?: SetFormValues;
   onSubmit: (values: SetFormValues) => void;
   isSubmitting: boolean;
   onCancel: () => void;
   onDelete?: () => void;
   isDeleting?: boolean;
 }) {
-  const showReps = exercise.tracksReps && fixedValues?.reps === undefined;
-  const showTime = exercise.tracksTime && fixedValues?.timeSeconds === undefined;
-  const showWeight = exercise.tracksWeight && fixedValues?.weightKg === undefined;
+  const showReps = exercise.tracksReps;
+  const showTime = exercise.tracksTime;
+  const showWeight = exercise.tracksWeight;
 
   const [reps, setReps] = useState(initialValues?.reps !== undefined ? String(initialValues.reps) : "");
   const [timeSeconds, setTimeSeconds] = useState(
@@ -53,9 +52,9 @@ export function SetForm({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     onSubmit({
-      reps: fixedValues?.reps ?? (showReps && reps !== "" ? Number(reps) : undefined),
-      timeSeconds: fixedValues?.timeSeconds ?? (showTime && timeSeconds !== "" ? Number(timeSeconds) : undefined),
-      weightKg: fixedValues?.weightKg ?? (showWeight && weightKg !== "" ? Number(weightKg) : undefined),
+      reps: showReps && reps !== "" ? Number(reps) : undefined,
+      timeSeconds: showTime && timeSeconds !== "" ? Number(timeSeconds) : undefined,
+      weightKg: showWeight && weightKg !== "" ? Number(weightKg) : undefined,
     });
   }
 

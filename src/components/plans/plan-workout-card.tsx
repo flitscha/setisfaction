@@ -26,16 +26,6 @@ function targetsForSlot(exercise: PlanExercise, slotIndex: number): SetFormValue
   };
 }
 
-// True when at least one tracked field has no plan-defined target for this
-// specific set — the user has to enter something before it can be logged.
-function needsInputForSlot(exercise: PlanExercise, slotIndex: number) {
-  return (
-    (exercise.tracksReps && targetAt(exercise.targetReps, slotIndex) === null) ||
-    (exercise.tracksTime && targetAt(exercise.targetTimeSeconds, slotIndex) === null) ||
-    (exercise.tracksWeight && targetAt(exercise.targetWeightKg, slotIndex) === null)
-  );
-}
-
 // Short label for one set's slot pill, e.g. "10", "10 · 20kg", or plainly
 // "Set 2" when nothing at all is fixed for it (the common to-failure case —
 // a run of bare question marks read as broken/uncertain rather than "log it
@@ -188,15 +178,15 @@ export function PlanWorkoutCard({
     );
   }
 
+  // Always opens the confirm dialog rather than logging straight away, even
+  // when the plan defines every tracked value — pre-filled with the plan's
+  // numbers, but still an editable form, so a set that actually went a rep
+  // over (or under) plan can be corrected before it's saved instead of only
+  // afterward through the normal edit flow.
   function handleLogNext(exercise: PlanExercise) {
     const slotIndex = exercise.loggedCount;
     if (slotIndex >= exercise.setsCount) return;
-
-    if (needsInputForSlot(exercise, slotIndex)) {
-      setExpandedExerciseId(exercise.id);
-      return;
-    }
-    logSet(exercise, slotIndex, targetsForSlot(exercise, slotIndex));
+    setExpandedExerciseId(exercise.id);
   }
 
   return (
@@ -244,8 +234,9 @@ export function PlanWorkoutCard({
 
                 {isExpanded && (
                   <SetForm
+                    key={`${exercise.id}-${nextSlot}`}
                     exercise={exercise}
-                    fixedValues={targetsForSlot(exercise, nextSlot)}
+                    initialValues={targetsForSlot(exercise, nextSlot)}
                     onSubmit={(values) => logSet(exercise, nextSlot, values)}
                     isSubmitting={isPending}
                     onCancel={() => setExpandedExerciseId(null)}
