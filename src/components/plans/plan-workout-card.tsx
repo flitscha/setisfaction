@@ -19,10 +19,16 @@ function targetAt(values: (number | null)[] | null | undefined, slotIndex: numbe
   return values?.[slotIndex] ?? null;
 }
 
+// Time is deliberately left out here even when the plan defines a target:
+// unlike reps/weight (numbers you already know once the set is done, so a
+// pre-filled guess is a fair starting point to correct), a time value only
+// becomes real by actually running the stopwatch — pre-filling it would
+// make the form think a time is already "existing", so hitting Start would
+// immediately hit the stopwatch's own restart-confirmation instead of just
+// starting the timing fresh.
 function targetsForSlot(exercise: PlanExercise, slotIndex: number): SetFormValues {
   return {
     reps: targetAt(exercise.targetReps, slotIndex) ?? undefined,
-    timeSeconds: targetAt(exercise.targetTimeSeconds, slotIndex) ?? undefined,
     weightKg: targetAt(exercise.targetWeightKg, slotIndex) ?? undefined,
   };
 }
