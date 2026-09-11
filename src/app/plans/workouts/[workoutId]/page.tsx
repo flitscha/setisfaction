@@ -6,11 +6,13 @@ import { trpc } from "@/lib/trpc/client";
 import { WorkoutForm, serializeWorkoutValues, targetDraftFromArray, type WorkoutFormValues } from "@/components/plans/workout-form";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
+import { useT } from "@/lib/i18n/context";
 
 export default function EditWorkoutPage({ params }: { params: Promise<{ workoutId: string }> }) {
   const { workoutId } = use(params);
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useT();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: workout, isLoading } = trpc.workout.getById.useQuery({ id: workoutId });
@@ -32,8 +34,8 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
   if (isLoading) {
     return (
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <BackLink href="/plans" label="Plans" />
-        <p className="text-muted px-1 mt-4">Loading…</p>
+        <BackLink href="/plans" label={t("nav.plans")} />
+        <p className="text-muted px-1 mt-4">{t("common.loading")}</p>
       </main>
     );
   }
@@ -41,8 +43,8 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
   if (!workout) {
     return (
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <BackLink href="/plans" label="Plans" />
-        <p className="text-muted px-1 mt-4">Workout not found.</p>
+        <BackLink href="/plans" label={t("nav.plans")} />
+        <p className="text-muted px-1 mt-4">{t("plans.workoutNotFound")}</p>
       </main>
     );
   }
@@ -70,26 +72,26 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
-      <BackLink href="/plans" label="Plans" />
-      <h1 className="text-xl font-semibold px-1">Edit workout</h1>
+      <BackLink href="/plans" label={t("nav.plans")} />
+      <h1 className="text-xl font-semibold px-1">{t("plans.editWorkoutTitle")}</h1>
 
       <WorkoutForm
         key={workoutId}
         initialValues={initialValues}
         onSubmit={handleSubmit}
         isSubmitting={updateWorkout.isPending}
-        submitLabel="Save"
+        submitLabel={t("common.save")}
         errorMessage={updateWorkout.error?.message}
       />
 
       <div className="border-t border-card-border pt-4">
         {!showDeleteConfirm ? (
           <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-            Delete workout
+            {t("plans.deleteWorkout")}
           </Button>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="text-sm">Delete &quot;{workout.name}&quot;?</p>
+            <p className="text-sm">{t("plans.deleteWorkoutConfirm", { name: workout.name })}</p>
             <div className="flex gap-2">
               <Button
                 variant="primary"
@@ -97,10 +99,10 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
                 onClick={() => deleteWorkout.mutate({ id: workoutId })}
                 disabled={deleteWorkout.isPending}
               >
-                {deleteWorkout.isPending ? "Deleting…" : "Confirm delete"}
+                {deleteWorkout.isPending ? t("common.deleting") : t("exercises.confirmDelete")}
               </Button>
               <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
             </div>
           </div>

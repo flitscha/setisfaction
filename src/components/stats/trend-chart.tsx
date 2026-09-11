@@ -1,3 +1,7 @@
+"use client";
+
+import { useLocale, useT } from "@/lib/i18n/context";
+
 type Point = { date: Date; value: number };
 
 export function TrendChart({
@@ -7,8 +11,12 @@ export function TrendChart({
   points: Point[];
   formatValue?: (value: number) => string;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const dateLocale = locale === "de" ? "de-DE" : "en-US";
+
   if (points.length === 0) {
-    return <p className="text-sm text-muted">Not enough data yet.</p>;
+    return <p className="text-sm text-muted">{t("chart.notEnoughData")}</p>;
   }
 
   const width = 300;
@@ -99,7 +107,7 @@ export function TrendChart({
 
       {labelIndices.map((i) => (
         <text key={i} x={xFor(i)} y={height - 6} textAnchor="middle" fontSize={8} fill="currentColor" opacity={0.6}>
-          {points[i].date.toLocaleDateString(undefined, { month: "numeric", day: "numeric" })}
+          {points[i].date.toLocaleDateString(dateLocale, { month: "numeric", day: "numeric" })}
         </text>
       ))}
     </svg>

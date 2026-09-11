@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/auth/logout-button";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { useT } from "@/lib/i18n/context";
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
@@ -17,6 +18,7 @@ const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparen
 // emailed link lands on /auth/callback, which finishes the job and sends
 // them on to /today (at which point the proxy stops redirecting here).
 export default function VerifyEmailPage() {
+  const t = useT();
   const { data: me } = trpc.auth.me.useQuery();
   const [step, setStep] = useState<"email" | "sent">("email");
   const [email, setEmail] = useState("");
@@ -37,7 +39,7 @@ export default function VerifyEmailPage() {
     setIsSubmitting(false);
 
     if (updateError) {
-      setError(describeAuthEmailError(updateError));
+      setError(describeAuthEmailError(updateError, t));
       return;
     }
 
@@ -51,20 +53,18 @@ export default function VerifyEmailPage() {
           <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
             <PullUpIcon size={24} />
           </div>
-          <h1 className="text-xl font-semibold">Add your email</h1>
+          <h1 className="text-xl font-semibold">{t("auth.addYourEmailTitle")}</h1>
         </div>
 
         <p className="text-sm text-muted text-center">
-          {me ? <>Hi {me.username} — </> : null}
-          your account doesn&apos;t have a working email on file yet, so there&apos;s no way to reset your password if
-          you forget it. Add one now — just this once.
+          {me ? t("auth.addEmailHintWithName", { username: me.username }) : t("auth.addEmailHintNoName")}
         </p>
 
         {step === "email" ? (
           <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
             <input
               type="email"
-              placeholder="Email"
+              placeholder={t("auth.email")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
@@ -75,16 +75,14 @@ export default function VerifyEmailPage() {
             {error && <p className="text-red-600 text-sm">{error}</p>}
 
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Sending…" : "Send confirmation link"}
+              {isSubmitting ? t("auth.sending") : t("auth.sendConfirmationLink")}
             </Button>
           </form>
         ) : (
-          <p className="text-sm text-muted text-center">
-            We sent a confirmation link to <strong>{email}</strong>. Open it on this device to finish.
-          </p>
+          <p className="text-sm text-muted text-center">{t("auth.confirmationSentGeneric", { email })}</p>
         )}
 
-        <LogoutButton className="text-sm text-muted text-center mx-auto">Log out instead</LogoutButton>
+        <LogoutButton className="text-sm text-muted text-center mx-auto">{t("topBar.logOutInstead")}</LogoutButton>
       </div>
     </main>
   );

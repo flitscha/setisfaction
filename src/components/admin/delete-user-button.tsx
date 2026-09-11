@@ -6,8 +6,10 @@ import { Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { useT } from "@/lib/i18n/context";
 
 export function DeleteUserButton({ userId, username }: { userId: string; username: string }) {
+  const t = useT();
   const router = useRouter();
   const utils = trpc.useUtils();
   const [showModal, setShowModal] = useState(false);
@@ -24,19 +26,15 @@ export function DeleteUserButton({ userId, username }: { userId: string; usernam
 
   return (
     <>
-      <button onClick={() => setShowModal(true)} aria-label="Delete this user" className="p-2 -m-2 hover:text-red-900">
+      <button onClick={() => setShowModal(true)} aria-label={t("admin.deleteThisUser")} className="p-2 -m-2 hover:text-red-900">
         <Trash2 size={18} />
       </button>
 
       {showModal && (
-        <Modal title="Delete user" onClose={() => setShowModal(false)}>
+        <Modal title={t("admin.deleteUser")} onClose={() => setShowModal(false)}>
           <div className="flex flex-col gap-3 text-foreground">
-            <p className="text-sm">
-              Permanently delete <strong>{username}</strong>&apos;s account and all their data? Can&apos;t be undone.
-            </p>
-            <p className="text-sm text-muted">
-              Type <strong>{username}</strong> to confirm.
-            </p>
+            <p className="text-sm">{t("admin.deleteConfirm", { name: username })}</p>
+            <p className="text-sm text-muted">{t("admin.typeToConfirm", { name: username })}</p>
             <input
               type="text"
               value={confirmText}
@@ -48,14 +46,14 @@ export function DeleteUserButton({ userId, username }: { userId: string; usernam
             {deleteUser.error && <p className="text-red-600 text-sm">{deleteUser.error.message}</p>}
             <div className="flex gap-2 justify-end mt-2">
               <Button variant="secondary" onClick={() => setShowModal(false)} disabled={deleteUser.isPending}>
-                Cancel
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="danger"
                 onClick={() => deleteUser.mutate({ userId })}
                 disabled={!canConfirm || deleteUser.isPending}
               >
-                {deleteUser.isPending ? "Deleting…" : "Delete permanently"}
+                {deleteUser.isPending ? t("common.deleting") : t("admin.deletePermanently")}
               </Button>
             </div>
           </div>

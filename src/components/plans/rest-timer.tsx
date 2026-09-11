@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/lib/i18n/context";
 
 // Full-screen countdown, mirroring Stopwatch's full-screen style but counting
 // down instead of up. Leads with a congrats line and a big "REST" heading —
@@ -21,6 +22,7 @@ export function RestTimer({
   setsCount: number;
   onDone: () => void;
 }) {
+  const t = useT();
   const [remaining, setRemaining] = useState(seconds);
 
   useEffect(() => {
@@ -43,10 +45,8 @@ export function RestTimer({
   return (
     <div className="fixed inset-0 z-50 bg-background flex flex-col items-center justify-between py-10 px-6">
       <div className="flex flex-col items-center gap-2 text-center">
-        <p className="text-lg font-medium">
-          Nice! {exerciseName} — set {setNumber} of {setsCount} done 🎉
-        </p>
-        <p className="text-4xl font-bold tracking-widest text-accent">REST</p>
+        <p className="text-lg font-medium">{t("restTimer.nice", { exercise: exerciseName, n: setNumber, total: setsCount })}</p>
+        <p className="text-4xl font-bold tracking-widest text-accent">{t("restTimer.rest")}</p>
       </div>
 
       <p className="text-8xl font-semibold tabular-nums" aria-live="polite">
@@ -58,7 +58,7 @@ export function RestTimer({
         onClick={onDone}
         className="w-full max-w-xs h-14 rounded-full border border-card-border text-lg font-medium active:brightness-90"
       >
-        Skip
+        {t("restTimer.skip")}
       </button>
     </div>
   );

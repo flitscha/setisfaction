@@ -7,12 +7,14 @@ import { createClient } from "@/lib/supabase/client";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { useT } from "@/lib/i18n/context";
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
 export default function LoginPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useT();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export default function LoginPage() {
 
     if (!email) {
       setIsSubmitting(false);
-      setError("Username or password is wrong.");
+      setError(t("auth.usernameOrPasswordWrong"));
       setShowForgotPassword(true);
       return;
     }
@@ -40,7 +42,7 @@ export default function LoginPage() {
     setIsSubmitting(false);
 
     if (signInError) {
-      setError("Username or password is wrong.");
+      setError(t("auth.usernameOrPasswordWrong"));
       setShowForgotPassword(true);
       return;
     }
@@ -61,7 +63,7 @@ export default function LoginPage() {
 
         <input
           type="text"
-          placeholder="Username"
+          placeholder={t("auth.username")}
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           autoComplete="username"
@@ -71,7 +73,7 @@ export default function LoginPage() {
 
         <input
           type="password"
-          placeholder="Password"
+          placeholder={t("auth.password")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"
@@ -84,18 +86,18 @@ export default function LoginPage() {
             <p className="text-red-600 text-sm">{error}</p>
             {showForgotPassword && (
               <Link href="/forgot-password" className="text-sm text-muted underline w-fit">
-                Forgot password?
+                {t("auth.forgotPassword")}
               </Link>
             )}
           </div>
         )}
 
         <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Logging in…" : "Log in"}
+          {isSubmitting ? t("auth.loggingIn") : t("auth.logIn")}
         </Button>
 
         <Link href="/register" className="text-sm text-muted text-center">
-          New here? Create an account
+          {t("auth.newHereCreateAccount")}
         </Link>
       </form>
     </main>

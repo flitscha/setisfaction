@@ -4,7 +4,6 @@ import { useState } from "react";
 import {
   aggregateByDay,
   availableTrackedFields,
-  TRACKED_FIELD_LABEL,
   valueForField,
   type DailyAggregate,
   type TrackedField,
@@ -14,8 +13,22 @@ import { formatSetValue } from "@/lib/format-set";
 import { TrendChart } from "./trend-chart";
 import { ChartLegend, ComparisonTrendChart } from "./comparison-trend-chart";
 import { Card } from "@/components/ui/card";
+import { useT, type TranslationKey } from "@/lib/i18n/context";
 
 const RECENT_DAYS_COUNT = 10;
+
+const FIELD_LABEL_KEY: Record<TrackedField, TranslationKey> = {
+  reps: "stats.fieldReps",
+  time: "stats.fieldTime",
+  weight: "stats.fieldWeight",
+  volume: "stats.fieldVolume",
+};
+const FIELD_TOTAL_TITLE_KEY: Record<TrackedField, TranslationKey> = {
+  reps: "stats.totalRepsPerDay",
+  time: "stats.totalTimePerDay",
+  weight: "stats.totalWeightPerDay",
+  volume: "stats.totalVolumePerDay",
+};
 
 export type ProgressExercise = { tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean };
 export type ProgressSet = {
@@ -99,7 +112,7 @@ function dailyForField(history: ProgressSet[], field: TrackedField | null): Dail
 export function ExerciseProgressView({
   exercise,
   history,
-  primaryLabel = "You",
+  primaryLabel,
   comparison,
 }: {
   exercise: ProgressExercise;
@@ -112,6 +125,7 @@ export function ExerciseProgressView({
   primaryLabel?: string;
   comparison?: { label: string; history: ProgressSet[] } | null;
 }) {
+  const t = useT();
   const [field, setField] = useState<TrackedField | null>(null);
 
   const availableFields = availableTrackedFields(exercise);
@@ -123,7 +137,6 @@ export function ExerciseProgressView({
 
   const daily = dailyForField(history, activeField);
   const comparisonDaily = comparison ? dailyForField(comparison.history, activeField) : null;
-  const unitLabel = activeField ? TRACKED_FIELD_LABEL[activeField].toLowerCase() : "";
   const allTimeBest = daily.length > 0 ? Math.max(...daily.map((d) => d.best)) : null;
   const recentDays = groupByLocalDay(history, (set) => set.performedAt).slice(0, RECENT_DAYS_COUNT);
 
@@ -136,11 +149,11 @@ export function ExerciseProgressView({
               {allTimeBest}
               {activeField === "time" ? "s" : activeField === "weight" || activeField === "volume" ? "kg" : ""}
             </p>
-            <p className="text-sm text-muted">All-time best</p>
+            <p className="text-sm text-muted">{t("stats.allTimeBest")}</p>
           </Card>
           <Card>
             <p className="text-2xl font-semibold">{history.length}</p>
-            <p className="text-sm text-muted">Sets total</p>
+            <p className="text-sm text-muted">{t("stats.setsTotal")}</p>
           </Card>
         </div>
       )}
@@ -155,37 +168,37 @@ export function ExerciseProgressView({
                 activeField === f ? "bg-accent text-accent-foreground border-transparent" : ""
               }`}
             >
-              {TRACKED_FIELD_LABEL[f]}
+              {t(FIELD_LABEL_KEY[f])}
             </button>
           ))}
         </div>
       )}
 
       <ChartSection
-        title="Best per training day"
+        title={t("stats.bestPerDay")}
         daily={daily}
         comparisonDaily={comparisonDaily}
         comparison={comparison}
-        primaryLabel={primaryLabel}
+        primaryLabel={primaryLabel ?? t("stats.you")}
         pick={(d) => d.best}
       />
 
       <ChartSection
-        title={`Total ${unitLabel} per training day`}
+        title={activeField ? t(FIELD_TOTAL_TITLE_KEY[activeField]) : ""}
         daily={daily}
         comparisonDaily={comparisonDaily}
         comparison={comparison}
-        primaryLabel={primaryLabel}
+        primaryLabel={primaryLabel ?? t("stats.you")}
         pick={(d) => d.total}
       />
 
       {recentDays.length > 0 && (
         <section className="flex flex-col gap-2">
-          <p className="text-sm font-medium px-1">Recent training days</p>
+          <p className="text-sm font-medium px-1">{t("stats.recentDays")}</p>
           <div className="flex flex-col gap-2">
             {recentDays.map((day) => (
               <div key={day.date.toISOString()} className="rounded-lg border border-card-border px-3 py-2">
-                <p className="text-sm text-muted mb-1.5">{formatDaysAgo(day.date)}</p>
+                <p className="text-sm text-muted mb-1.5">{formatDaysAgo(day.date, t)}</p>
                 <div className="flex flex-wrap gap-2">
                   {day.items.map((set) => (
                     <span key={set.id} className="rounded-md border border-card-border px-2 py-1 text-sm tabular-nums">

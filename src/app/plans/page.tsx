@@ -5,8 +5,10 @@ import { Pencil, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/context";
 
 export default function PlansPage() {
+  const t = useT();
   const isReadOnly = useViewAsUser() !== null;
   const appPath = useAppPath();
   const utils = trpc.useUtils();
@@ -19,25 +21,23 @@ export default function PlansPage() {
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
-      <h1 className="text-xl font-semibold px-1">Training plans</h1>
+      <h1 className="text-xl font-semibold px-1">{t("plans.title")}</h1>
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
-          <p className="text-sm font-medium">Workouts</p>
+          <p className="text-sm font-medium">{t("plans.workouts")}</p>
           {!isReadOnly && (
             <Link
               href="/plans/workouts/new"
               className="flex items-center gap-1.5 rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium"
             >
               <Plus size={16} />
-              New
+              {t("common.new")}
             </Link>
           )}
         </div>
-        {workoutsLoading && <p className="text-sm text-muted px-1">Loading…</p>}
-        {workouts?.length === 0 && (
-          <p className="text-sm text-muted px-1">No workouts yet — a workout is a reusable exercise list, e.g. &quot;Pull Day&quot;.</p>
-        )}
+        {workoutsLoading && <p className="text-sm text-muted px-1">{t("common.loading")}</p>}
+        {workouts?.length === 0 && <p className="text-sm text-muted px-1">{t("plans.noWorkoutsYet")}</p>}
         <div className="flex flex-col gap-2">
           {workouts?.map((workout) => (
             <Link
@@ -54,24 +54,20 @@ export default function PlansPage() {
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
-          <p className="text-sm font-medium">Training plans</p>
+          <p className="text-sm font-medium">{t("plans.trainingPlans")}</p>
           {!isReadOnly && (
             <Link
               href="/plans/new"
               className="flex items-center gap-1.5 rounded-lg bg-accent text-accent-foreground px-3 py-2 text-sm font-medium"
             >
               <Plus size={16} />
-              New
+              {t("common.new")}
             </Link>
           )}
         </div>
-        {plansLoading && <p className="text-sm text-muted px-1">Loading…</p>}
-        {plans?.length === 0 && (
-          <p className="text-sm text-muted px-1">No plans yet — a plan assigns a workout to each day of the week.</p>
-        )}
-        {plans && plans.length > 0 && (
-          <p className="text-sm text-muted px-1">Only the active plan shows up on Today.</p>
-        )}
+        {plansLoading && <p className="text-sm text-muted px-1">{t("common.loading")}</p>}
+        {plans?.length === 0 && <p className="text-sm text-muted px-1">{t("plans.noPlansYet")}</p>}
+        {plans && plans.length > 0 && <p className="text-sm text-muted px-1">{t("plans.onlyActiveShows")}</p>}
         <div className="flex flex-col gap-2">
           {plans?.map((plan) => (
             <div
@@ -83,7 +79,7 @@ export default function PlansPage() {
                 {!isReadOnly && <Pencil size={14} className="text-muted shrink-0" />}
               </Link>
               {plan.isActive ? (
-                <span className="text-sm text-accent font-medium whitespace-nowrap">✓ Active</span>
+                <span className="text-sm text-accent font-medium whitespace-nowrap">{t("plans.active")}</span>
               ) : (
                 !isReadOnly && (
                   <Button
@@ -91,7 +87,7 @@ export default function PlansPage() {
                     onClick={() => setActive.mutate({ id: plan.id })}
                     disabled={setActive.isPending}
                   >
-                    Activate
+                    {t("plans.activate")}
                   </Button>
                 )
               )}

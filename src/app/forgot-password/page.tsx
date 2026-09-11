@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { describeAuthEmailError } from "@/lib/supabase/errors";
 import { Button } from "@/components/ui/button";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { useT } from "@/lib/i18n/context";
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
@@ -13,6 +14,7 @@ const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparen
 // PASSWORD_RECOVERY event and shows the "set a new password" form itself —
 // this page's job ends at sending that email.
 export default function ForgotPasswordPage() {
+  const t = useT();
   const [step, setStep] = useState<"email" | "sent">("email");
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export default function ForgotPasswordPage() {
     // that stays true here too; the rate limit itself isn't an enumeration
     // risk, so it's fine (and more honest) to actually show that one.
     if (resetError?.code === "over_email_send_rate_limit") {
-      setError(describeAuthEmailError(resetError));
+      setError(describeAuthEmailError(resetError, t));
       return;
     }
 
@@ -48,18 +50,16 @@ export default function ForgotPasswordPage() {
           <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
             <PullUpIcon size={24} />
           </div>
-          <h1 className="text-xl font-semibold">Reset password</h1>
+          <h1 className="text-xl font-semibold">{t("auth.resetPasswordTitle")}</h1>
         </div>
 
         {step === "email" ? (
           <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
-            <p className="text-sm text-muted text-center">
-              Enter the email you registered with — we&apos;ll send a link to reset your password.
-            </p>
+            <p className="text-sm text-muted text-center">{t("auth.resetPasswordHint")}</p>
 
             <input
               type="email"
-              placeholder="Email"
+              placeholder={t("auth.email")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
@@ -70,18 +70,15 @@ export default function ForgotPasswordPage() {
             {error && <p className="text-red-600 text-sm">{error}</p>}
 
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Sending…" : "Send reset link"}
+              {isSubmitting ? t("auth.sending") : t("auth.sendResetLink")}
             </Button>
 
             <Link href="/login" className="text-sm text-muted text-center">
-              Back to log in
+              {t("auth.backToLogin")}
             </Link>
           </form>
         ) : (
-          <p className="text-sm text-muted text-center">
-            If an account exists for <strong>{email}</strong>, we sent a link to reset your password. Open it on this
-            device.
-          </p>
+          <p className="text-sm text-muted text-center">{t("auth.resetLinkSentIfExists", { email })}</p>
         )}
       </div>
     </main>

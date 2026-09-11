@@ -5,16 +5,18 @@ import { usePathname } from "next/navigation";
 import { CalendarCheck, CalendarClock, LineChart } from "lucide-react";
 import { isChromelessPath } from "@/lib/auth-pages";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { useT, type TranslationKey } from "@/lib/i18n/context";
 
-const TABS = [
-  { path: "/today", label: "Today", icon: CalendarCheck },
-  { path: "/plans", label: "Plans", icon: CalendarClock },
-  { path: "/exercises", label: "Exercises", icon: PullUpIcon },
-  { path: "/stats", label: "Stats", icon: LineChart },
+const TABS: { path: string; labelKey: TranslationKey; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
+  { path: "/today", labelKey: "nav.today", icon: CalendarCheck },
+  { path: "/plans", labelKey: "nav.plans", icon: CalendarClock },
+  { path: "/exercises", labelKey: "nav.exercises", icon: PullUpIcon },
+  { path: "/stats", labelKey: "nav.stats", icon: LineChart },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
+  const t = useT();
 
   if (isChromelessPath(pathname)) {
     return null;
@@ -27,7 +29,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 inset-x-0 border-t border-card-border bg-background flex">
-      {TABS.map(({ path, label, icon: Icon }) => {
+      {TABS.map(({ path, labelKey, icon: Icon }) => {
         const href = `${basePath}${path}`;
         const isActive = pathname === href || pathname.startsWith(`${href}/`);
         return (
@@ -39,7 +41,7 @@ export function BottomNav() {
             }`}
           >
             <Icon size={24} />
-            {label}
+            {t(labelKey)}
           </Link>
         );
       })}

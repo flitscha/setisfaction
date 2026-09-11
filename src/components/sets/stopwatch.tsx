@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/context";
 
 export function Stopwatch({
   onStop,
@@ -16,6 +17,7 @@ export function Stopwatch({
   // restart confirmation is showing, so it doesn't compete for space.
   onConfirmingRestartChange?: (confirming: boolean) => void;
 }) {
+  const t = useT();
   const [isRunning, setIsRunning] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [confirmRestart, setConfirmRestartState] = useState(false);
@@ -73,7 +75,7 @@ export function Stopwatch({
           onClick={() => setIsRunning(false)}
           className="self-start p-2 -m-2 text-sm text-muted"
         >
-          Cancel
+          {t("stopwatch.cancel")}
         </button>
 
         <p className="text-8xl font-semibold tabular-nums" aria-live="polite">
@@ -85,7 +87,7 @@ export function Stopwatch({
           onClick={handleStop}
           className="w-full max-w-xs h-28 rounded-full bg-accent text-accent-foreground text-3xl font-semibold shadow-lg active:brightness-90"
         >
-          Stop
+          {t("stopwatch.stop")}
         </button>
       </div>
     );
@@ -94,7 +96,7 @@ export function Stopwatch({
   if (confirmRestart) {
     return (
       <div className="flex items-center gap-2">
-        <span className="text-sm text-muted whitespace-nowrap">Restart timer?</span>
+        <span className="text-sm text-muted whitespace-nowrap">{t("stopwatch.restartTitle")}</span>
         <Button
           type="button"
           variant="secondary"
@@ -103,10 +105,10 @@ export function Stopwatch({
             beginTiming();
           }}
         >
-          Restart
+          {t("stopwatch.restart")}
         </Button>
         <Button type="button" variant="ghost" onClick={() => setConfirmRestart(false)}>
-          Cancel
+          {t("stopwatch.cancel")}
         </Button>
       </div>
     );
@@ -114,7 +116,7 @@ export function Stopwatch({
 
   return (
     <Button type="button" variant="secondary" onClick={handleStart} className="whitespace-nowrap">
-      Start
+      {t("stopwatch.start")}
     </Button>
   );
 }

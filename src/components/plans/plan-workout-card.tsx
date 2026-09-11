@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SetForm, type SetFormValues } from "@/components/sets/set-form";
 import { RestTimer } from "./rest-timer";
+import { useT, type TranslationKey } from "@/lib/i18n/context";
 
 type TodayWorkout = NonNullable<inferRouterOutputs<AppRouter>["trainingPlan"]["todayWorkout"]>;
 type PlanExercise = TodayWorkout["exercises"][number];
@@ -32,7 +33,7 @@ function targetsForSlot(exercise: PlanExercise, slotIndex: number): SetFormValue
 // yourself"). A field with no target only gets its own "–" when some *other*
 // tracked field for the same set does have one, so a real value is never
 // lost in a sea of placeholders.
-function slotLabel(exercise: PlanExercise, slotIndex: number): string {
+function slotLabel(exercise: PlanExercise, slotIndex: number, t: (key: TranslationKey, params?: Record<string, string | number>) => string): string {
   const parts: string[] = [];
   let anyDefined = false;
 
@@ -52,7 +53,7 @@ function slotLabel(exercise: PlanExercise, slotIndex: number): string {
     parts.push(v !== null ? `${v}kg` : "–");
   }
 
-  return anyDefined ? parts.join(" · ") : `Set ${slotIndex + 1}`;
+  return anyDefined ? parts.join(" · ") : t("planCard.setN", { n: slotIndex + 1 });
 }
 
 function SlotPill({ label, done }: { label: string; done: boolean }) {
@@ -83,6 +84,7 @@ export function PlanWorkoutCard({
   queryInput: TodayWorkoutInput;
   todayRangeKey: { dayStart: Date; dayEnd: Date };
 }) {
+  const t = useT();
   const utils = trpc.useUtils();
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
   const [pendingExerciseId, setPendingExerciseId] = useState<string | null>(null);
@@ -196,7 +198,7 @@ export function PlanWorkoutCard({
           <CalendarClock size={18} className="text-accent shrink-0" />
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-muted font-medium">
-              {workout.isCatchUp ? "Missed yesterday — catch up" : "Today's plan"}
+              {workout.isCatchUp ? t("planCard.catchUp") : t("planCard.today")}
             </p>
             <p className="font-semibold truncate">{workout.workoutName}</p>
           </div>
@@ -215,19 +217,19 @@ export function PlanWorkoutCard({
 
                 <div className="flex flex-wrap gap-2">
                   {Array.from({ length: exercise.setsCount }, (_, i) => (
-                    <SlotPill key={i} label={slotLabel(exercise, i)} done={i < exercise.loggedCount} />
+                    <SlotPill key={i} label={slotLabel(exercise, i, t)} done={i < exercise.loggedCount} />
                   ))}
                 </div>
 
                 {done ? (
                   <p className="text-sm text-accent flex items-center gap-1">
-                    <Check size={14} /> All sets done
+                    <Check size={14} /> {t("planCard.allSetsDone")}
                   </p>
                 ) : (
                   !isReadOnly &&
                   !isExpanded && (
                     <Button variant="secondary" onClick={() => handleLogNext(exercise)} disabled={isPending}>
-                      {isPending ? "Logging…" : `Log set ${nextSlot + 1} of ${exercise.setsCount}`}
+                      {isPending ? t("planCard.logging") : t("planCard.logSet", { n: nextSlot + 1, total: exercise.setsCount })}
                     </Button>
                   )
                 )}

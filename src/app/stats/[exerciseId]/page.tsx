@@ -5,9 +5,11 @@ import { trpc } from "@/lib/trpc/client";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { ExerciseProgressView } from "@/components/stats/exercise-progress-view";
 import { BackLink } from "@/components/ui/back-link";
+import { useT } from "@/lib/i18n/context";
 
 export default function ExerciseStatsPage({ params }: { params: Promise<{ exerciseId: string }> }) {
   const { exerciseId } = use(params);
+  const t = useT();
   const appPath = useAppPath();
   const isViewingAs = useViewAsUser() !== null;
   const [compareFriendId, setCompareFriendId] = useState<string | null>(null);
@@ -30,7 +32,7 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
-      <BackLink href={appPath("/stats")} label="Stats" />
+      <BackLink href={appPath("/stats")} label={t("stats.title")} />
       <div className="flex flex-col gap-1">
         <h1 className="text-xl font-semibold px-1">{exercise?.name ?? "…"}</h1>
         {exercise?.description && <p className="text-sm text-muted px-1">{exercise.description}</p>}
@@ -38,7 +40,7 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
 
       {canCompare && friends && friends.length > 0 && (
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium px-1">Compare with a friend</p>
+          <p className="text-sm font-medium px-1">{t("stats.compareWithFriend")}</p>
           <div className="flex gap-2 px-1 flex-wrap">
             {friends.map((friend) => (
               <button

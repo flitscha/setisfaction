@@ -4,13 +4,12 @@
 // if several people happen to hit it around the same time.
 type AuthErrorLike = { code?: string; status?: number; message: string } | null | undefined;
 
-const RATE_LIMIT_MESSAGE =
-  "We can only send a limited number of emails per hour right now — please wait a bit and try again.";
-
-export function describeAuthEmailError(error: AuthErrorLike): string | null {
+// `t` is threaded in (rather than imported) since this is a plain utility,
+// not a component — it can't call the useT() hook itself.
+export function describeAuthEmailError(error: AuthErrorLike, t: (key: "auth.emailRateLimited") => string): string | null {
   if (!error) return null;
   if (error.code === "over_email_send_rate_limit" || (error.status === 429 && /rate limit/i.test(error.message))) {
-    return RATE_LIMIT_MESSAGE;
+    return t("auth.emailRateLimited");
   }
   return error.message;
 }

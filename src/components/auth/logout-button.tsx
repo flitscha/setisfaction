@@ -2,9 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useT } from "@/lib/i18n/context";
 
 export function LogoutButton({ children, className }: { children?: React.ReactNode; className?: string }) {
   const router = useRouter();
+  const t = useT();
 
   async function handleLogout() {
     const supabase = createClient();
@@ -16,10 +18,10 @@ export function LogoutButton({ children, className }: { children?: React.ReactNo
   return (
     <button
       onClick={handleLogout}
-      aria-label="Log out"
+      aria-label={t("topBar.logOut")}
       className={className ?? "p-2 -m-2 text-muted hover:text-foreground"}
     >
-      {children ?? "Log out"}
+      {children ?? t("topBar.logOut")}
     </button>
   );
 }

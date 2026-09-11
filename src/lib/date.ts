@@ -35,13 +35,15 @@ export function groupByLocalDay<T>(items: T[], getDate: (item: T) => Date): { da
   return Array.from(byDay.values()).sort((a, b) => b.date.getTime() - a.date.getTime());
 }
 
-// "Today", "Yesterday", "N days ago" relative to the local calendar day.
-export function formatDaysAgo(date: Date): string {
+// "Today", "Yesterday", "N days ago" relative to the local calendar day. `t`
+// is threaded in (rather than imported) since this is a plain utility, not a
+// component — it can't call the useT() hook itself.
+export function formatDaysAgo(date: Date, t: (key: "date.today" | "date.yesterday" | "date.daysAgo", params?: Record<string, string | number>) => string): string {
   const { start } = getLocalDayRange();
   const otherDay = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const diffDays = Math.round((start.getTime() - otherDay.getTime()) / (24 * 60 * 60 * 1000));
 
-  if (diffDays <= 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  return `${diffDays} days ago`;
+  if (diffDays <= 0) return t("date.today");
+  if (diffDays === 1) return t("date.yesterday");
+  return t("date.daysAgo", { n: diffDays });
 }

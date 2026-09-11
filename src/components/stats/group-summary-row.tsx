@@ -1,12 +1,16 @@
+"use client";
+
 import Link from "next/link";
 import { useAppPath } from "@/components/admin/view-as-context";
 import { formatDaysAgo } from "@/lib/date";
+import { useT } from "@/lib/i18n/context";
 
 export function GroupSummaryRow({
   group,
 }: {
   group: { groupId: string; name: string; totalSets: number; totalTrainingDays: number; lastTrainedAt: Date | null };
 }) {
+  const t = useT();
   const appPath = useAppPath();
   return (
     <Link
@@ -16,11 +20,15 @@ export function GroupSummaryRow({
       <div>
         <p className="font-medium">{group.name}</p>
         <p className="text-sm text-muted">
-          {group.totalSets} sets · {group.totalTrainingDays} training day{group.totalTrainingDays === 1 ? "" : "s"}
+          {t("stats.groupSummary", {
+            sets: group.totalSets,
+            days: group.totalTrainingDays,
+            dayWord: t(group.totalTrainingDays === 1 ? "stats.trainingDaySingular" : "stats.trainingDayPlural"),
+          })}
         </p>
       </div>
       <p className="text-sm text-muted whitespace-nowrap">
-        {group.lastTrainedAt ? formatDaysAgo(group.lastTrainedAt) : "Never"}
+        {group.lastTrainedAt ? formatDaysAgo(group.lastTrainedAt, t) : t("stats.never")}
       </p>
     </Link>
   );

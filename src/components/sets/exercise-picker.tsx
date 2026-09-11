@@ -6,6 +6,7 @@ import { groupItemsByGroup } from "@/lib/group-by";
 import { searchItems } from "@/lib/search";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { SearchInput } from "@/components/ui/search-input";
+import { useT } from "@/lib/i18n/context";
 
 export type PickableExercise = {
   id: string;
@@ -30,6 +31,7 @@ function ExerciseButton({ exercise, onSelect }: { exercise: PickableExercise; on
 }
 
 export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExercise) => void }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const { data: all } = trpc.exercise.list.useQuery();
   const { data: groups } = trpc.group.list.useQuery();
@@ -51,12 +53,12 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
 
   return (
     <div className="flex flex-col gap-3">
-      <SearchInput value={query} onChange={setQuery} placeholder="Search exercise…" autoFocus />
+      <SearchInput value={query} onChange={setQuery} placeholder={t("picker.search")} autoFocus />
 
       <div className="flex flex-col gap-3 max-h-[60vh] overflow-y-auto">
         {searched ? (
           <div className="flex flex-col gap-1">
-            {searched.length === 0 && <p className="text-sm text-muted">No matching exercises.</p>}
+            {searched.length === 0 && <p className="text-sm text-muted">{t("picker.noMatches")}</p>}
             {searched.map((exercise) => (
               <ExerciseButton key={exercise.id} exercise={exercise} onSelect={onSelect} />
             ))}
@@ -65,7 +67,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
           <>
             {topExercises.length > 0 && (
               <div className="flex flex-col gap-1">
-                <p className="text-sm font-medium text-muted px-1">Most trained</p>
+                <p className="text-sm font-medium text-muted px-1">{t("picker.mostTrained")}</p>
                 {topExercises.map((exercise) => (
                   <ExerciseButton key={exercise.id} exercise={exercise} onSelect={onSelect} />
                 ))}
@@ -73,7 +75,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
             )}
 
             <div className="flex flex-col gap-2">
-              <p className="text-sm font-medium text-muted px-1">Browse by group</p>
+              <p className="text-sm font-medium text-muted px-1">{t("picker.browseByGroup")}</p>
               {sections.map((section) => (
                 <CollapsibleSection
                   key={section.groupId ?? "ungrouped"}

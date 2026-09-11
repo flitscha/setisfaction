@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useT, type TranslationKey } from "@/lib/i18n/context";
 
 type ExerciseCategoryChoice = "calisthenics" | "gym" | "both";
 
@@ -18,10 +19,10 @@ function flagsFromChoice(choice: ExerciseCategoryChoice): { wantsCalisthenics: b
   };
 }
 
-const OPTIONS: { value: ExerciseCategoryChoice; label: string; description: string }[] = [
-  { value: "calisthenics", label: "Calisthenics", description: "Bodyweight exercises — push-ups, pull-ups, levers, holds…" },
-  { value: "gym", label: "Gym", description: "Barbell, dumbbell, and machine exercises." },
-  { value: "both", label: "Both", description: "See the full catalog." },
+const OPTIONS: { value: ExerciseCategoryChoice; labelKey: TranslationKey; descriptionKey: TranslationKey }[] = [
+  { value: "calisthenics", labelKey: "category.calisthenics", descriptionKey: "category.calisthenicsHint" },
+  { value: "gym", labelKey: "category.gym", descriptionKey: "category.gymHint" },
+  { value: "both", labelKey: "category.both", descriptionKey: "category.bothHint" },
 ];
 
 export function ExerciseCategoryForm({
@@ -37,6 +38,7 @@ export function ExerciseCategoryForm({
   isSubmitting: boolean;
   submitLabel: string;
 }) {
+  const t = useT();
   const [choice, setChoice] = useState<ExerciseCategoryChoice>(
     choiceFromFlags(initialWantsCalisthenics, initialWantsGym),
   );
@@ -60,20 +62,17 @@ export function ExerciseCategoryForm({
                 selected ? "border-accent bg-accent text-accent-foreground" : "border-card-border bg-card"
               }`}
             >
-              <p className="font-medium">{option.label}</p>
-              <p className={`text-sm ${selected ? "" : "text-muted"}`}>{option.description}</p>
+              <p className="font-medium">{t(option.labelKey)}</p>
+              <p className={`text-sm ${selected ? "" : "text-muted"}`}>{t(option.descriptionKey)}</p>
             </button>
           );
         })}
       </div>
 
-      <p className="text-sm text-muted px-1">
-        Exercises you&apos;ve already logged sets for stay visible either way — this only changes what&apos;s offered going
-        forward.
-      </p>
+      <p className="text-sm text-muted px-1">{t("category.keepHistoryHint")}</p>
 
       <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Saving…" : submitLabel}
+        {isSubmitting ? t("common.saving") : submitLabel}
       </Button>
     </form>
   );

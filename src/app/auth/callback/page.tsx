@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { useT } from "@/lib/i18n/context";
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
@@ -34,6 +35,7 @@ export default function AuthCallbackPage() {
 
 function AuthCallbackContent() {
   const router = useRouter();
+  const t = useT();
   const searchParams = useSearchParams();
   const flow = searchParams.get("flow");
   const username = searchParams.get("username");
@@ -88,7 +90,7 @@ function AuthCallbackContent() {
       } else {
         if (!cancelled) {
           setStatus("error");
-          setError("That link is invalid or has expired.");
+          setError(t("auth.linkInvalidOrExpired"));
         }
         return;
       }
@@ -103,7 +105,7 @@ function AuthCallbackContent() {
       if (flow === "signup") {
         if (!username) {
           setStatus("error");
-          setError("Missing username — please register again.");
+          setError(t("auth.missingUsername"));
           return;
         }
         try {
@@ -111,7 +113,7 @@ function AuthCallbackContent() {
         } catch (err) {
           if (!cancelled) {
             setStatus("error");
-            setError(err instanceof Error ? err.message : "Something went wrong.");
+            setError(err instanceof Error ? err.message : t("auth.somethingWentWrong"));
           }
           return;
         }
@@ -141,7 +143,7 @@ function AuthCallbackContent() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords don't match.");
+      setError(t("auth.passwordsDontMatch"));
       return;
     }
 
@@ -169,22 +171,22 @@ function AuthCallbackContent() {
           <h1 className="text-xl font-semibold">Setisfaction</h1>
         </div>
 
-        {status === "working" && <p className="text-sm text-muted text-center">Finishing up…</p>}
+        {status === "working" && <p className="text-sm text-muted text-center">{t("auth.finishingUp")}</p>}
 
         {status === "error" && (
           <>
             <p className="text-red-600 text-sm text-center">{error}</p>
-            <Button onClick={() => router.push("/login")}>Back to log in</Button>
+            <Button onClick={() => router.push("/login")}>{t("auth.backToLogin")}</Button>
           </>
         )}
 
         {status === "set-password" && (
           <form onSubmit={handleSetPassword} className="flex flex-col gap-4">
-            <p className="text-sm text-muted text-center">Choose a new password.</p>
+            <p className="text-sm text-muted text-center">{t("auth.chooseNewPassword")}</p>
 
             <input
               type="password"
-              placeholder="New password"
+              placeholder={t("auth.newPassword")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
@@ -196,7 +198,7 @@ function AuthCallbackContent() {
 
             <input
               type="password"
-              placeholder="Confirm new password"
+              placeholder={t("auth.confirmNewPassword")}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
@@ -208,7 +210,7 @@ function AuthCallbackContent() {
             {error && <p className="text-red-600 text-sm">{error}</p>}
 
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Saving…" : "Set password"}
+              {isSubmitting ? t("common.saving") : t("auth.setPassword")}
             </Button>
           </form>
         )}

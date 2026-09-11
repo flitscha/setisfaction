@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Stopwatch } from "./stopwatch";
+import { useT } from "@/lib/i18n/context";
 
 export type SetFormValues = {
   reps?: number;
@@ -32,6 +33,7 @@ export function SetForm({
   onDelete?: () => void;
   isDeleting?: boolean;
 }) {
+  const t = useT();
   const showReps = exercise.tracksReps;
   const showTime = exercise.tracksTime;
   const showWeight = exercise.tracksWeight;
@@ -74,7 +76,7 @@ export function SetForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-t border-card-border pt-3">
       {showReps && (
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Reps</span>
+          <span className="text-sm font-medium">{t("common.reps")}</span>
           <input
             type="number"
             inputMode="numeric"
@@ -88,7 +90,7 @@ export function SetForm({
 
       {showTime && (
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Time (seconds)</span>
+          <span className="text-sm font-medium">{t("common.timeSeconds")}</span>
           <input
             type="number"
             inputMode="numeric"
@@ -107,7 +109,7 @@ export function SetForm({
                 <button
                   type="button"
                   onClick={() => nudgeTime(-1)}
-                  aria-label="Subtract one second"
+                  aria-label={t("setForm.subtractSecond")}
                   className="rounded-lg border border-card-border px-3 py-2 text-sm min-h-11"
                 >
                   −1s
@@ -115,7 +117,7 @@ export function SetForm({
                 <button
                   type="button"
                   onClick={() => nudgeTime(1)}
-                  aria-label="Add one second"
+                  aria-label={t("setForm.addSecond")}
                   className="rounded-lg border border-card-border px-3 py-2 text-sm min-h-11"
                 >
                   +1s
@@ -128,7 +130,7 @@ export function SetForm({
 
       {showWeight && (
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Weight (kg)</span>
+          <span className="text-sm font-medium">{t("common.weightKg")}</span>
           <input
             type="number"
             inputMode="decimal"
@@ -142,17 +144,17 @@ export function SetForm({
 
       {confirmCancel ? (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted">Discard this set?</span>
+          <span className="text-sm text-muted">{t("setForm.discardTitle")}</span>
           <Button type="button" variant="danger" onClick={onCancel} className="ml-auto">
-            Discard
+            {t("setForm.discard")}
           </Button>
           <Button type="button" variant="ghost" onClick={() => setConfirmCancel(false)}>
-            Keep editing
+            {t("setForm.keepEditing")}
           </Button>
         </div>
       ) : confirmDelete ? (
         <div className="flex items-center gap-2">
-          <span className="text-sm text-muted">Delete this set?</span>
+          <span className="text-sm text-muted">{t("setForm.deleteTitle")}</span>
           <Button
             type="button"
             variant="primary"
@@ -160,23 +162,23 @@ export function SetForm({
             onClick={onDelete}
             disabled={isDeleting}
           >
-            {isDeleting ? "Deleting…" : "Confirm"}
+            {isDeleting ? t("common.deleting") : t("common.confirm")}
           </Button>
           <Button type="button" variant="ghost" onClick={() => setConfirmDelete(false)}>
-            Cancel
+            {t("common.cancel")}
           </Button>
         </div>
       ) : (
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Saving…" : "Save set"}
+            {isSubmitting ? t("common.saving") : t("setForm.saveSet")}
           </Button>
           <Button type="button" variant="ghost" onClick={handleCancelClick}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           {onDelete && (
             <Button type="button" variant="danger" onClick={() => setConfirmDelete(true)} className="ml-auto">
-              Delete
+              {t("common.delete")}
             </Button>
           )}
         </div>

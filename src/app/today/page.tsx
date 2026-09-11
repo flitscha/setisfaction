@@ -10,6 +10,7 @@ import { SetForm, type SetFormValues } from "@/components/sets/set-form";
 import { TodayExerciseCard } from "@/components/sets/today-exercise-card";
 import { Modal } from "@/components/ui/modal";
 import { PlanWorkoutCard } from "@/components/plans/plan-workout-card";
+import { useT } from "@/lib/i18n/context";
 
 type EditingSet = {
   id: string;
@@ -20,6 +21,7 @@ type EditingSet = {
 };
 
 export default function TodayPage() {
+  const t = useT();
   const isReadOnly = useViewAsUser() !== null;
   const now = useMemo(() => new Date(), []);
   const { start, end } = useMemo(() => getLocalDayRange(now), [now]);
@@ -164,7 +166,7 @@ export default function TodayPage() {
 
   return (
     <main className="flex-1 p-4 pb-24 max-w-md mx-auto w-full flex flex-col gap-4">
-      <h1 className="text-xl font-semibold px-1">Today</h1>
+      <h1 className="text-xl font-semibold px-1">{t("today.title")}</h1>
 
       {planWorkout && (
         <PlanWorkoutCard
@@ -178,13 +180,11 @@ export default function TodayPage() {
       {/* Redundant once the plan card is showing — its pills already say
           nothing's logged yet, and it's the more useful next step anyway. */}
       {!planWorkout && displayGroups.length === 0 && (
-        <p className="text-muted px-1">
-          {isReadOnly ? "No sets logged today." : "No sets logged yet today. Tap + to get started."}
-        </p>
+        <p className="text-muted px-1">{isReadOnly ? t("today.noSetsReadOnly") : t("today.noSetsOwn")}</p>
       )}
 
       {planWorkout && displayGroups.length > 0 && (
-        <p className="text-xs uppercase tracking-wide text-muted font-medium px-1">Logged today</p>
+        <p className="text-xs uppercase tracking-wide text-muted font-medium px-1">{t("today.loggedToday")}</p>
       )}
 
       <div className="flex flex-col gap-3">
@@ -269,12 +269,12 @@ export default function TodayPage() {
           className="fixed bottom-20 right-4 rounded-full bg-accent text-accent-foreground h-14 pl-4 pr-5 flex items-center gap-1.5 shadow-lg font-medium"
         >
           <Plus size={24} />
-          New set
+          {t("today.newSet")}
         </button>
       )}
 
       {showPicker && (
-        <Modal title="Log exercise" onClose={() => setShowPicker(false)}>
+        <Modal title={t("today.logExercise")} onClose={() => setShowPicker(false)}>
           <ExercisePicker
             onSelect={(exercise) => {
               setEditingSet(null);

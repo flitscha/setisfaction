@@ -3,9 +3,17 @@
 import Link from "next/link";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath } from "@/components/admin/view-as-context";
-import { aggregateByDay, TRACKED_FIELD_UNIT, valueForField, type TrackedField } from "@/lib/stats";
+import { aggregateByDay, valueForField, type TrackedField } from "@/lib/stats";
 import { CustomBadge } from "@/components/exercises/custom-badge";
 import { Sparkline } from "./sparkline";
+import { useT, type TranslationKey } from "@/lib/i18n/context";
+
+const UNIT_KEY: Record<TrackedField, TranslationKey> = {
+  reps: "stats.unitReps",
+  time: "stats.unitTime",
+  weight: "stats.unitWeight",
+  volume: "stats.unitVolume",
+};
 
 // Volume (reps × weight) takes priority over either alone for a gym-style
 // exercise that tracks both — see valueForField's comment for why.
@@ -29,6 +37,7 @@ export function ExerciseSummaryRow({
     tracksWeight: boolean;
   };
 }) {
+  const t = useT();
   const appPath = useAppPath();
   const { data: history } = trpc.set.listByExercise.useQuery({ exerciseId: exercise.id });
   const field = primaryField(exercise);
@@ -56,7 +65,7 @@ export function ExerciseSummaryRow({
           {exercise.userId !== null && <CustomBadge />}
         </p>
         <p className="text-sm text-muted">
-          {best !== null && field ? `Best: ${best} ${TRACKED_FIELD_UNIT[field]}` : "No sets yet"}
+          {best !== null && field ? t("stats.best", { value: best, unit: t(UNIT_KEY[field]) }) : t("stats.noSetsYet")}
         </p>
       </div>
       {daily.length > 0 && <Sparkline values={daily.map((d) => d.best)} />}

@@ -5,8 +5,10 @@ import { trpc } from "@/lib/trpc/client";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
+import { useT } from "@/lib/i18n/context";
 
 export default function GroupsPage() {
+  const t = useT();
   const isReadOnly = useViewAsUser() !== null;
   const appPath = useAppPath();
   const utils = trpc.useUtils();
@@ -40,12 +42,9 @@ export default function GroupsPage() {
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
-      <BackLink href={appPath("/exercises")} label="Exercises" />
-      <h1 className="text-xl font-semibold px-1">Groups</h1>
-      <p className="text-sm text-muted px-1">
-        Group exercises (e.g. Push, Pull, Legs) to see how much you train each one. An exercise can belong to
-        several groups, or none.
-      </p>
+      <BackLink href={appPath("/exercises")} label={t("exercises.title")} />
+      <h1 className="text-xl font-semibold px-1">{t("exercises.groupsTitle")}</h1>
+      <p className="text-sm text-muted px-1">{t("exercises.groupsHint")}</p>
 
       {!isReadOnly && (
         <div className="flex gap-2">
@@ -53,14 +52,14 @@ export default function GroupsPage() {
             type="text"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            placeholder="New group name"
+            placeholder={t("exercises.newGroupName")}
             className="border border-card-border rounded-lg px-3 py-2 bg-transparent flex-1 min-w-0"
           />
           <Button
             disabled={newName.trim() === "" || createGroup.isPending}
             onClick={() => createGroup.mutate({ name: newName.trim() })}
           >
-            Add
+            {t("common.add")}
           </Button>
         </div>
       )}
@@ -83,25 +82,25 @@ export default function GroupsPage() {
                   onClick={() => renameGroup.mutate({ id: group.id, name: editingName.trim() })}
                   disabled={editingName.trim() === "" || renameGroup.isPending}
                 >
-                  Save
+                  {t("common.save")}
                 </Button>
                 <Button variant="ghost" onClick={() => setEditingId(null)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </>
             ) : confirmDeleteId === group.id ? (
               <>
-                <p className="flex-1 text-sm">Delete &quot;{group.name}&quot;?</p>
+                <p className="flex-1 text-sm">{t("exercises.deleteGroupConfirm", { name: group.name })}</p>
                 <Button
                   variant="primary"
                   className="bg-red-600 text-white hover:brightness-110"
                   onClick={() => deleteGroup.mutate({ id: group.id })}
                   disabled={deleteGroup.isPending}
                 >
-                  {deleteGroup.isPending ? "Deleting…" : "Confirm"}
+                  {deleteGroup.isPending ? t("common.deleting") : t("common.confirm")}
                 </Button>
                 <Button variant="ghost" onClick={() => setConfirmDeleteId(null)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
               </>
             ) : (
@@ -116,10 +115,10 @@ export default function GroupsPage() {
                         setEditingName(group.name);
                       }}
                     >
-                      Rename
+                      {t("exercises.rename")}
                     </Button>
                     <Button variant="danger" onClick={() => setConfirmDeleteId(group.id)}>
-                      Delete
+                      {t("common.delete")}
                     </Button>
                   </>
                 )}
@@ -127,7 +126,7 @@ export default function GroupsPage() {
             )}
           </div>
         ))}
-        {groups?.length === 0 && <p className="text-sm text-muted px-1">No groups yet.</p>}
+        {groups?.length === 0 && <p className="text-sm text-muted px-1">{t("exercises.noGroupsYet")}</p>}
       </div>
     </main>
   );

@@ -11,10 +11,12 @@ import { ExerciseSummaryRow } from "@/components/stats/exercise-summary-row";
 import { GroupSummaryRow } from "@/components/stats/group-summary-row";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { SearchInput } from "@/components/ui/search-input";
+import { useT } from "@/lib/i18n/context";
 
 const FAVORITES_COUNT = 7;
 
 export default function StatsPage() {
+  const t = useT();
   const appPath = useAppPath();
   const [query, setQuery] = useState("");
   const { data: heatmapData } = trpc.stats.heatmap.useQuery();
@@ -48,26 +50,28 @@ export default function StatsPage() {
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
-      <h1 className="text-xl font-semibold px-1">Stats</h1>
+      <h1 className="text-xl font-semibold px-1">{t("stats.title")}</h1>
 
       {aggregates && (
         <AggregateCards totalSets={aggregates.totalSets} totalTrainingDays={aggregates.totalTrainingDays} />
       )}
 
       <section className="flex flex-col gap-2">
-        <p className="text-sm font-medium px-1">Last 12 weeks (tap to browse by day)</p>
+        <p className="text-sm font-medium px-1">{t("stats.last12Weeks")}</p>
         <HeatmapCalendar
           performedAtDates={(heatmapData ?? []).map((set) => set.performedAt)}
           href={appPath("/stats/history")}
         />
       </section>
 
-      {sortedExercises.length > 0 && <SearchInput value={query} onChange={setQuery} placeholder="Search exercises…" />}
-      {sortedExercises.length === 0 && <p className="text-sm text-muted px-1">No exercises yet.</p>}
+      {sortedExercises.length > 0 && (
+        <SearchInput value={query} onChange={setQuery} placeholder={t("exercises.searchPlaceholder")} />
+      )}
+      {sortedExercises.length === 0 && <p className="text-sm text-muted px-1">{t("stats.noExercisesYet")}</p>}
 
       {!query.trim() && favorites.length > 0 && (
         <section className="flex flex-col gap-2">
-          <p className="text-sm font-medium px-1">Favorites</p>
+          <p className="text-sm font-medium px-1">{t("stats.favorites")}</p>
           <div className="flex flex-col gap-2">
             {favorites.map((exercise) => (
               <ExerciseSummaryRow key={exercise.id} exercise={exercise} />
@@ -77,10 +81,10 @@ export default function StatsPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <p className="text-sm font-medium px-1">By exercise</p>
-        {searchedExercises?.length === 0 && <p className="text-sm text-muted px-1">No matching exercises.</p>}
+        <p className="text-sm font-medium px-1">{t("stats.byExercise")}</p>
+        {searchedExercises?.length === 0 && <p className="text-sm text-muted px-1">{t("exercises.noMatches")}</p>}
         {!searchedExercises && trainedExercises.length === 0 && (
-          <p className="text-sm text-muted px-1">Log a set to see it here.</p>
+          <p className="text-sm text-muted px-1">{t("stats.logSetToSeeHere")}</p>
         )}
         {searchedExercises
           ? searchedExercises.map((exercise) => <ExerciseSummaryRow key={exercise.id} exercise={exercise} />)
@@ -100,7 +104,7 @@ export default function StatsPage() {
 
       {!query.trim() && sortedGroups.length > 0 && (
         <section className="flex flex-col gap-2">
-          <p className="text-sm font-medium px-1">By group</p>
+          <p className="text-sm font-medium px-1">{t("stats.byGroup")}</p>
           <div className="flex flex-col gap-2">
             {sortedGroups.map((group) => (
               <GroupSummaryRow key={group.groupId} group={group} />

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/context";
 
 export function GroupMultiSelect({
   selectedGroupIds,
@@ -11,6 +12,7 @@ export function GroupMultiSelect({
   selectedGroupIds: string[];
   onChange: (groupIds: string[]) => void;
 }) {
+  const t = useT();
   const utils = trpc.useUtils();
   const { data: groups } = trpc.group.list.useQuery();
   const [newGroupName, setNewGroupName] = useState("");
@@ -33,7 +35,7 @@ export function GroupMultiSelect({
 
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="text-sm font-medium mb-1">Groups (optional)</legend>
+      <legend className="text-sm font-medium mb-1">{t("exercises.groupsOptional")}</legend>
 
       {groups && groups.length > 0 && (
         <div className="flex flex-wrap gap-2">
@@ -60,7 +62,7 @@ export function GroupMultiSelect({
           type="text"
           value={newGroupName}
           onChange={(e) => setNewGroupName(e.target.value)}
-          placeholder="New group name"
+          placeholder={t("exercises.newGroupName")}
           className="border border-card-border rounded-lg px-3 py-2 bg-transparent flex-1 min-w-0 text-sm"
         />
         <Button
@@ -69,7 +71,7 @@ export function GroupMultiSelect({
           disabled={newGroupName.trim() === "" || createGroup.isPending}
           onClick={() => createGroup.mutate({ name: newGroupName.trim() })}
         >
-          Add
+          {t("common.add")}
         </Button>
       </div>
       {createGroup.error && <p className="text-red-600 text-sm">{createGroup.error.message}</p>}

@@ -3,6 +3,7 @@
 import { use } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { ViewAsRegistration } from "@/components/admin/view-as-context";
+import { useT } from "@/lib/i18n/context";
 
 export default function AdminUserLayout({
   children,
@@ -11,13 +12,14 @@ export default function AdminUserLayout({
   children: React.ReactNode;
   params: Promise<{ userId: string }>;
 }) {
+  const t = useT();
   const { userId } = use(params);
   const { data: user, isLoading, error } = trpc.admin.getUser.useQuery({ userId });
 
   if (isLoading) {
     return (
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <p className="text-muted">Loading…</p>
+        <p className="text-muted">{t("common.loading")}</p>
       </main>
     );
   }
@@ -25,7 +27,7 @@ export default function AdminUserLayout({
   if (error || !user) {
     return (
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <p className="text-muted">{error?.message ?? "User not found."}</p>
+        <p className="text-muted">{error?.message ?? t("admin.userNotFound")}</p>
       </main>
     );
   }

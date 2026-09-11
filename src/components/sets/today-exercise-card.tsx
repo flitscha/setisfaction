@@ -2,6 +2,7 @@ import { Star } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatSetValue } from "@/lib/format-set";
+import { useT } from "@/lib/i18n/context";
 
 type TodaySet = { id: string; reps: number | null; timeSeconds: number | null; weightKg: number | null; isPr: boolean };
 
@@ -20,13 +21,14 @@ export function TodayExerciseCard({
   onEditSet?: (setId: string) => void;
   expandedContent?: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <Card className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <p className="font-medium">{exerciseName}</p>
         {onAddSet && (
           <Button variant="secondary" onClick={onAddSet}>
-            + Set
+            {t("today.addSet")}
           </Button>
         )}
       </div>

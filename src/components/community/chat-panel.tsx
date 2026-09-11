@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
+import { useLocale, useT } from "@/lib/i18n/context";
 
 const POLL_INTERVAL_MS = 4000;
 
-function formatTimestamp(date: Date): string {
+function formatTimestamp(date: Date, dateLocale: string): string {
   const isToday = date.toDateString() === new Date().toDateString();
-  const time = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  return isToday ? time : `${date.toLocaleDateString(undefined, { month: "numeric", day: "numeric" })} ${time}`;
+  const time = date.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" });
+  return isToday ? time : `${date.toLocaleDateString(dateLocale, { month: "numeric", day: "numeric" })} ${time}`;
 }
 
 // A single global room every registered user shares — simple polling rather
@@ -17,6 +18,9 @@ function formatTimestamp(date: Date): string {
 // needing any extra infrastructure. Only the most recent 100 messages exist
 // at all (see chat.send), so there's never a "load more" here.
 export function ChatPanel() {
+  const t = useT();
+  const { locale } = useLocale();
+  const dateLocale = locale === "de" ? "de-DE" : "en-US";
   const [body, setBody] = useState("");
   const utils = trpc.useUtils();
   const { data: me } = trpc.auth.me.useQuery();
@@ -32,7 +36,7 @@ export function ChatPanel() {
         {
           id: `optimistic-${crypto.randomUUID()}`,
           userId: "optimistic",
-          username: me?.username ?? "You",
+          username: me?.username ?? t("chat.you"),
           body: sentBody,
           createdAt: new Date(),
         },
@@ -62,11 +66,11 @@ export function ChatPanel() {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-2 max-h-[55vh] overflow-y-auto">
-        {messages?.length === 0 && <p className="text-sm text-muted px-1">No messages yet — say hi.</p>}
+        {messages?.length === 0 && <p className="text-sm text-muted px-1">{t("chat.noMessagesYet")}</p>}
         {messages?.map((m) => (
           <div key={m.id} className="rounded-lg border border-card-border px-3 py-2">
             <p className="text-xs text-muted mb-0.5">
-              {m.username} · {formatTimestamp(m.createdAt)}
+              {m.username} · {formatTimestamp(m.createdAt, dateLocale)}
             </p>
             <p className="text-sm whitespace-pre-wrap break-words">{m.body}</p>
           </div>
@@ -79,12 +83,12 @@ export function ChatPanel() {
           type="text"
           value={body}
           onChange={(e) => setBody(e.target.value)}
-          placeholder="Message…"
+          placeholder={t("chat.placeholder")}
           maxLength={500}
           className="flex-1 border border-card-border rounded-lg px-3 py-2.5 min-h-11 bg-transparent"
         />
         <Button type="submit" disabled={send.isPending || !body.trim()}>
-          Send
+          {t("chat.send")}
         </Button>
       </form>
       {send.error && <p className="text-red-600 text-sm">{send.error.message}</p>}

@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { useT } from "@/lib/i18n/context";
 
 export function Modal({
   title,
@@ -13,6 +14,7 @@ export function Modal({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const t = useT();
   // Locks background scroll while open — otherwise a scroll gesture outside
   // the modal can drag the page (and the modal along with it) on some
   // mobile browsers.
@@ -42,7 +44,7 @@ export function Modal({
       >
         <div className="flex items-center justify-between mb-3">
           <p className="font-medium">{title}</p>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-2 -m-2 text-muted hover:text-foreground">
+          <button type="button" onClick={onClose} aria-label={t("ui.close")} className="p-2 -m-2 text-muted hover:text-foreground">
             <X size={22} />
           </button>
         </div>

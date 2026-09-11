@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown, Pencil } from "lucide-react";
 import { useViewAsUser } from "@/components/admin/view-as-context";
 import { CustomBadge } from "@/components/exercises/custom-badge";
+import { useT } from "@/lib/i18n/context";
 
 export function ExerciseCard({
   exercise,
@@ -21,13 +22,14 @@ export function ExerciseCard({
   };
   groupNames: string[];
 }) {
+  const t = useT();
   const [expanded, setExpanded] = useState(false);
   const isReadOnly = useViewAsUser() !== null;
 
   const trackedLabels = [
-    exercise.tracksReps && "Reps",
-    exercise.tracksTime && "Time",
-    exercise.tracksWeight && "Weight",
+    exercise.tracksReps && t("exercises.trackReps"),
+    exercise.tracksTime && t("exercises.trackTime"),
+    exercise.tracksWeight && t("exercises.trackWeight"),
   ]
     .filter(Boolean)
     .join(", ");
@@ -59,7 +61,7 @@ export function ExerciseCard({
           )}
 
           <div className="flex items-center justify-between gap-2">
-            <p className="text-muted text-sm">Type: {trackedLabels}</p>
+            <p className="text-muted text-sm">{t("exercises.typeLabel", { fields: trackedLabels })}</p>
 
             {!isReadOnly && (
               <Link
@@ -67,7 +69,7 @@ export function ExerciseCard({
                 className="flex items-center gap-1.5 rounded-lg border border-card-border px-3 py-2 text-sm"
               >
                 <Pencil size={14} />
-                Edit
+                {t("common.edit")}
               </Link>
             )}
           </div>

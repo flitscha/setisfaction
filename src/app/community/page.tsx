@@ -8,11 +8,18 @@ import { openFriendProfile } from "@/lib/friend-profile";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/search-input";
 import { ChatPanel } from "@/components/community/chat-panel";
+import { useT, type TranslationKey } from "@/lib/i18n/context";
 
 type Tab = "everyone" | "friends" | "requests" | "chat";
-const TABS: Tab[] = ["everyone", "friends", "requests", "chat"];
+const TABS: { value: Tab; labelKey: TranslationKey }[] = [
+  { value: "everyone", labelKey: "community.tabEveryone" },
+  { value: "friends", labelKey: "community.tabFriends" },
+  { value: "requests", labelKey: "community.tabRequests" },
+  { value: "chat", labelKey: "community.tabChat" },
+];
 
 export default function CommunityPage() {
+  const t = useT();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("everyone");
   const [query, setQuery] = useState("");
@@ -70,32 +77,34 @@ export default function CommunityPage() {
         className="flex items-center gap-1.5 py-2 -my-2 text-sm text-muted hover:text-foreground w-fit"
       >
         <ArrowLeft size={18} />
-        Back
+        {t("common.back")}
       </button>
 
-      <h1 className="text-xl font-semibold px-1">Community</h1>
+      <h1 className="text-xl font-semibold px-1">{t("community.title")}</h1>
 
       <div className="flex gap-2 px-1">
-        {TABS.map((t) => (
+        {TABS.map((tabDef) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`text-sm rounded-lg px-3 py-2 min-h-11 border border-card-border capitalize ${
-              tab === t ? "bg-accent text-accent-foreground border-transparent" : ""
+            key={tabDef.value}
+            onClick={() => setTab(tabDef.value)}
+            className={`text-sm rounded-lg px-3 py-2 min-h-11 border border-card-border ${
+              tab === tabDef.value ? "bg-accent text-accent-foreground border-transparent" : ""
             }`}
           >
-            {t}
-            {t === "requests" && !!requestCount && ` (${requestCount})`}
+            {t(tabDef.labelKey)}
+            {tabDef.value === "requests" && !!requestCount && ` (${requestCount})`}
           </button>
         ))}
       </div>
 
       {tab === "everyone" && (
         <div className="flex flex-col gap-3">
-          {users && users.length > 0 && <SearchInput value={query} onChange={setQuery} placeholder="Search users…" />}
-          {users?.length === 0 && <p className="text-sm text-muted px-1">No other users yet.</p>}
+          {users && users.length > 0 && (
+            <SearchInput value={query} onChange={setQuery} placeholder={t("community.searchPlaceholder")} />
+          )}
+          {users?.length === 0 && <p className="text-sm text-muted px-1">{t("community.noOtherUsers")}</p>}
           {users && users.length > 0 && filteredUsers.length === 0 && (
-            <p className="text-sm text-muted px-1">No matching users.</p>
+            <p className="text-sm text-muted px-1">{t("community.noMatchingUsers")}</p>
           )}
           <div className="flex flex-col gap-2">
             {filteredUsers.map((u) => (
@@ -111,7 +120,7 @@ export default function CommunityPage() {
                     onClick={() => sendRequest.mutate({ userId: u.userId })}
                     disabled={sendRequest.isPending}
                   >
-                    Add friend
+                    {t("community.addFriend")}
                   </Button>
                 )}
                 {u.status === "outgoing" && (
@@ -120,20 +129,20 @@ export default function CommunityPage() {
                     onClick={() => cancelRequest.mutate({ userId: u.userId })}
                     disabled={cancelRequest.isPending}
                   >
-                    Cancel request
+                    {t("community.cancelRequest")}
                   </Button>
                 )}
                 {u.status === "incoming" && (
                   <div className="flex gap-2 shrink-0">
                     <Button onClick={() => acceptRequest.mutate({ userId: u.userId })} disabled={acceptRequest.isPending}>
-                      Accept
+                      {t("community.accept")}
                     </Button>
                     <Button
                       variant="ghost"
                       onClick={() => declineRequest.mutate({ userId: u.userId })}
                       disabled={declineRequest.isPending}
                     >
-                      Decline
+                      {t("community.decline")}
                     </Button>
                   </div>
                 )}
@@ -142,7 +151,7 @@ export default function CommunityPage() {
                     variant="secondary"
                     onClick={() => openFriendProfile({ userId: u.userId, username: u.username })}
                   >
-                    Profile
+                    {t("community.profile")}
                   </Button>
                 )}
               </div>
@@ -153,16 +162,14 @@ export default function CommunityPage() {
 
       {tab === "friends" && (
         <div className="flex flex-col gap-2">
-          {friends?.length === 0 && (
-            <p className="text-sm text-muted px-1">No friends yet — send a request from Everyone.</p>
-          )}
+          {friends?.length === 0 && <p className="text-sm text-muted px-1">{t("community.noFriendsYet")}</p>}
           {friends?.map((f) =>
             confirmUnfriendId === f.userId ? (
               <div
                 key={f.userId}
                 className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex flex-col gap-2"
               >
-                <p className="text-sm">Remove {f.username} as a friend?</p>
+                <p className="text-sm">{t("community.removeFriendConfirm", { name: f.username })}</p>
                 <div className="flex gap-2">
                   <Button
                     variant="primary"
@@ -170,10 +177,10 @@ export default function CommunityPage() {
                     onClick={() => unfriend.mutate({ userId: f.userId })}
                     disabled={unfriend.isPending}
                   >
-                    {unfriend.isPending ? "Removing…" : "Confirm"}
+                    {unfriend.isPending ? t("community.removing") : t("common.confirm")}
                   </Button>
                   <Button variant="ghost" onClick={() => setConfirmUnfriendId(null)}>
-                    Cancel
+                    {t("community.cancel")}
                   </Button>
                 </div>
               </div>
@@ -185,10 +192,10 @@ export default function CommunityPage() {
                 <p className="font-medium truncate">{f.username}</p>
                 <div className="flex gap-2 shrink-0">
                   <Button variant="secondary" onClick={() => openFriendProfile({ userId: f.userId, username: f.username })}>
-                    Profile
+                    {t("community.profile")}
                   </Button>
                   <Button variant="ghost" onClick={() => setConfirmUnfriendId(f.userId)}>
-                    Remove
+                    {t("community.remove")}
                   </Button>
                 </div>
               </div>
@@ -200,8 +207,8 @@ export default function CommunityPage() {
       {tab === "requests" && (
         <div className="flex flex-col gap-6">
           <section className="flex flex-col gap-2">
-            <p className="text-sm font-medium px-1">Incoming</p>
-            {incoming?.length === 0 && <p className="text-sm text-muted px-1">Nothing pending.</p>}
+            <p className="text-sm font-medium px-1">{t("community.incoming")}</p>
+            {incoming?.length === 0 && <p className="text-sm text-muted px-1">{t("community.nothingPending")}</p>}
             {incoming?.map((r) => (
               <div
                 key={r.fromUserId}
@@ -210,14 +217,14 @@ export default function CommunityPage() {
                 <p className="font-medium truncate">{r.username}</p>
                 <div className="flex gap-2 shrink-0">
                   <Button onClick={() => acceptRequest.mutate({ userId: r.fromUserId })} disabled={acceptRequest.isPending}>
-                    Accept
+                    {t("community.accept")}
                   </Button>
                   <Button
                     variant="ghost"
                     onClick={() => declineRequest.mutate({ userId: r.fromUserId })}
                     disabled={declineRequest.isPending}
                   >
-                    Decline
+                    {t("community.decline")}
                   </Button>
                 </div>
               </div>
@@ -225,8 +232,8 @@ export default function CommunityPage() {
           </section>
 
           <section className="flex flex-col gap-2">
-            <p className="text-sm font-medium px-1">Sent</p>
-            {outgoing?.length === 0 && <p className="text-sm text-muted px-1">Nothing pending.</p>}
+            <p className="text-sm font-medium px-1">{t("community.sent")}</p>
+            {outgoing?.length === 0 && <p className="text-sm text-muted px-1">{t("community.nothingPending")}</p>}
             {outgoing?.map((r) => (
               <div
                 key={r.toUserId}
@@ -238,7 +245,7 @@ export default function CommunityPage() {
                   onClick={() => cancelRequest.mutate({ userId: r.toUserId })}
                   disabled={cancelRequest.isPending}
                 >
-                  Cancel
+                  {t("community.cancel")}
                 </Button>
               </div>
             ))}

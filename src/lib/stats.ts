@@ -10,20 +10,6 @@ export type DailyAggregate = { date: Date; best: number; total: number };
 // though total training load went up.
 export type TrackedField = "reps" | "time" | "weight" | "volume";
 
-export const TRACKED_FIELD_LABEL: Record<TrackedField, string> = {
-  reps: "Reps",
-  time: "Time (s)",
-  weight: "Weight (kg)",
-  volume: "Volume (kg)",
-};
-
-export const TRACKED_FIELD_UNIT: Record<TrackedField, string> = {
-  reps: "reps",
-  time: "s",
-  weight: "kg",
-  volume: "kg vol.",
-};
-
 type FieldSet = { reps: number | null; timeSeconds: number | null; weightKg: number | null };
 
 export function valueForField(set: FieldSet, field: TrackedField): number | null {

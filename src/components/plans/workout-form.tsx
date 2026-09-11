@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { ExercisePicker, type PickableExercise } from "@/components/sets/exercise-picker";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { useT } from "@/lib/i18n/context";
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
@@ -134,6 +135,8 @@ function TargetFieldEditor({
   step?: string;
   onChange: (next: TargetDraft) => void;
 }) {
+  const t = useT();
+
   function setPerSetValue(index: number, value: string) {
     const perSet = target.perSet.slice();
     perSet[index] = value;
@@ -144,7 +147,7 @@ function TargetFieldEditor({
     <div className="flex flex-col gap-2">
       <label className="flex items-center gap-2">
         <input type="checkbox" checked={target.defined} onChange={(e) => onChange({ ...target, defined: e.target.checked })} />
-        <span className="text-sm text-muted">Define {label.toLowerCase()} (optional — blank means to failure)</span>
+        <span className="text-sm text-muted">{t("workoutForm.definePrefix", { label })}</span>
       </label>
 
       {target.defined && (
@@ -155,7 +158,7 @@ function TargetFieldEditor({
               checked={!target.sameForAllSets}
               onChange={(e) => onChange({ ...target, sameForAllSets: !e.target.checked })}
             />
-            Different {label.toLowerCase()} per set (e.g. pyramid 10 → 8 → 6)
+            {t("workoutForm.differentPerSet", { label })}
           </label>
 
           {target.sameForAllSets ? (
@@ -171,7 +174,7 @@ function TargetFieldEditor({
             <div className="flex flex-wrap gap-2">
               {Array.from({ length: setsCount }, (_, i) => (
                 <label key={i} className="flex flex-col items-center gap-1">
-                  <span className="text-xs text-muted">Set {i + 1}</span>
+                  <span className="text-xs text-muted">{t("planCard.setN", { n: i + 1 })}</span>
                   <input
                     type="number"
                     inputMode={inputMode}
@@ -204,6 +207,7 @@ export function WorkoutForm({
   submitLabel: string;
   errorMessage?: string | null;
 }) {
+  const t = useT();
   const [name, setName] = useState(initialValues?.name ?? "");
   const [exercises, setExercises] = useState<WorkoutExerciseDraft[]>(initialValues?.exercises ?? []);
   const [showPicker, setShowPicker] = useState(false);
@@ -241,16 +245,16 @@ export function WorkoutForm({
     e.preventDefault();
 
     if (!name.trim()) {
-      setValidationError("Name is required.");
+      setValidationError(t("plans.nameRequired"));
       return;
     }
     if (exercises.length === 0) {
-      setValidationError("Add at least one exercise.");
+      setValidationError(t("workoutForm.addAtLeastOneExercise"));
       return;
     }
     for (const exercise of exercises) {
       if (!exercise.setsCount || Number(exercise.setsCount) < 1) {
-        setValidationError(`Set a valid number of sets for ${exercise.exerciseName}.`);
+        setValidationError(t("workoutForm.setValidSets", { name: exercise.exerciseName }));
         return;
       }
     }
@@ -262,12 +266,12 @@ export function WorkoutForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Name</span>
+        <span className="text-sm font-medium">{t("exercises.name")}</span>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Pull Day"
+          placeholder={t("workoutForm.namePlaceholder")}
           className={inputClass}
         />
       </label>
@@ -282,7 +286,7 @@ export function WorkoutForm({
                 <button
                   type="button"
                   onClick={() => removeExercise(index)}
-                  aria-label={`Remove ${exercise.exerciseName}`}
+                  aria-label={t("workoutForm.removeExercise", { name: exercise.exerciseName })}
                   className="p-2 -m-2 text-muted hover:text-red-600 shrink-0"
                 >
                   <Trash2 size={18} />
@@ -290,7 +294,7 @@ export function WorkoutForm({
               </div>
 
               <label className="flex flex-col gap-1">
-                <span className="text-sm text-muted">Sets</span>
+                <span className="text-sm text-muted">{t("workoutForm.sets")}</span>
                 <input
                   type="number"
                   inputMode="numeric"
@@ -303,7 +307,7 @@ export function WorkoutForm({
 
               {exercise.tracksReps && (
                 <TargetFieldEditor
-                  label="Reps"
+                  label={t("common.reps")}
                   target={exercise.reps}
                   setsCount={setsCount}
                   inputMode="numeric"
@@ -313,7 +317,7 @@ export function WorkoutForm({
 
               {exercise.tracksTime && (
                 <TargetFieldEditor
-                  label="Time (seconds)"
+                  label={t("common.timeSeconds")}
                   target={exercise.time}
                   setsCount={setsCount}
                   inputMode="numeric"
@@ -323,7 +327,7 @@ export function WorkoutForm({
 
               {exercise.tracksWeight && (
                 <TargetFieldEditor
-                  label="Weight (kg)"
+                  label={t("common.weightKg")}
                   target={exercise.weight}
                   setsCount={setsCount}
                   inputMode="decimal"
@@ -338,11 +342,11 @@ export function WorkoutForm({
                   checked={exercise.definePause}
                   onChange={(e) => updateExercise(index, { definePause: e.target.checked })}
                 />
-                Define rest between sets
+                {t("workoutForm.definePause")}
               </label>
               {exercise.definePause && (
                 <label className="flex flex-col gap-1">
-                  <span className="text-sm text-muted">Rest in seconds</span>
+                  <span className="text-sm text-muted">{t("workoutForm.restInSeconds")}</span>
                   <input
                     type="number"
                     inputMode="numeric"
@@ -360,17 +364,17 @@ export function WorkoutForm({
 
       <Button type="button" variant="secondary" onClick={() => setShowPicker(true)} className="flex items-center justify-center gap-1.5">
         <Plus size={18} />
-        Add exercise
+        {t("workoutForm.addExercise")}
       </Button>
 
       {(validationError || errorMessage) && <p className="text-red-600 text-sm">{validationError ?? errorMessage}</p>}
 
       <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Saving…" : submitLabel}
+        {isSubmitting ? t("common.saving") : submitLabel}
       </Button>
 
       {showPicker && (
-        <Modal title="Add exercise" onClose={() => setShowPicker(false)}>
+        <Modal title={t("workoutForm.addExercise")} onClose={() => setShowPicker(false)}>
           <ExercisePicker
             onSelect={(exercise) => {
               // The same exercise twice in one workout would share a single
@@ -378,7 +382,7 @@ export function WorkoutForm({
               // id, not by which slot it came from), so both entries would
               // silently complete together — confusing rather than useful.
               if (exercises.some((e) => e.exerciseId === exercise.id)) {
-                setValidationError(`"${exercise.name}" is already in this workout.`);
+                setValidationError(t("workoutForm.alreadyInWorkout", { name: exercise.name }));
                 setShowPicker(false);
                 return;
               }

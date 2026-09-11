@@ -8,8 +8,17 @@ import { useAppPath } from "@/components/admin/view-as-context";
 import { toLocalDateKey, getLocalDayRange } from "@/lib/date";
 import { heatColorClass, heatTextColorClass } from "@/lib/stats";
 import { BackLink } from "@/components/ui/back-link";
+import { useLocale, type TranslationKey } from "@/lib/i18n/context";
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_LABEL_KEYS: TranslationKey[] = [
+  "date.weekdayMon",
+  "date.weekdayTue",
+  "date.weekdayWed",
+  "date.weekdayThu",
+  "date.weekdayFri",
+  "date.weekdaySat",
+  "date.weekdaySun",
+];
 
 function startOfMonth(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), 1);
@@ -27,6 +36,8 @@ function HistoryPageContent() {
   const searchParams = useSearchParams();
   const groupId = searchParams.get("group");
   const appPath = useAppPath();
+  const { t, locale } = useLocale();
+  const dateLocale = locale === "de" ? "de-DE" : "en-US";
 
   const [monthCursor, setMonthCursor] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -86,27 +97,29 @@ function HistoryPageContent() {
   for (let i = 0; i < firstWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
 
-  const monthLabel = monthCursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  const monthLabel = monthCursor.toLocaleDateString(dateLocale, { month: "long", year: "numeric" });
   const todayKey = toLocalDateKey(new Date());
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">
-      <BackLink href={appPath(groupId ? `/stats/groups/${groupId}` : "/stats")} label={groupName ?? "Stats"} />
-      <h1 className="text-xl font-semibold px-1">{groupName ? `${groupName} history` : "History"}</h1>
+      <BackLink href={appPath(groupId ? `/stats/groups/${groupId}` : "/stats")} label={groupName ?? t("stats.title")} />
+      <h1 className="text-xl font-semibold px-1">
+        {groupName ? t("history.groupHistoryTitle", { group: groupName }) : t("history.title")}
+      </h1>
 
       <div className="flex items-center justify-between px-1">
-        <button onClick={() => setMonthCursor(new Date(year, month - 1, 1))} aria-label="Previous month">
+        <button onClick={() => setMonthCursor(new Date(year, month - 1, 1))} aria-label={t("history.previousMonth")}>
           <ChevronLeft size={20} />
         </button>
         <p className="font-medium">{monthLabel}</p>
-        <button onClick={() => setMonthCursor(new Date(year, month + 1, 1))} aria-label="Next month">
+        <button onClick={() => setMonthCursor(new Date(year, month + 1, 1))} aria-label={t("history.nextMonth")}>
           <ChevronRight size={20} />
         </button>
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted px-1">
-        {WEEKDAY_LABELS.map((label) => (
-          <span key={label}>{label}</span>
+        {WEEKDAY_LABEL_KEYS.map((key) => (
+          <span key={key}>{t(key)}</span>
         ))}
       </div>
 
@@ -135,10 +148,10 @@ function HistoryPageContent() {
       {selectedDate && (
         <section className="flex flex-col gap-2 border-t border-card-border pt-4">
           <p className="text-sm font-medium px-1">
-            {selectedDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+            {selectedDate.toLocaleDateString(dateLocale, { weekday: "long", month: "long", day: "numeric" })}
           </p>
           {dayGroups.length === 0 ? (
-            <p className="text-sm text-muted px-1">No sets logged this day.</p>
+            <p className="text-sm text-muted px-1">{t("history.noSetsThisDay")}</p>
           ) : (
             <div className="flex flex-col gap-2">
               {dayGroups.map((group) => (

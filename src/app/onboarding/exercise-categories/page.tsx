@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc/client";
 import { ExerciseCategoryForm } from "@/components/settings/exercise-category-form";
 import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { useT } from "@/lib/i18n/context";
 
 // The one-time landing point right after signup (see auth/callback's
 // flow=signup branch) — completeRegistration already created the profile
@@ -15,6 +16,7 @@ import { PullUpIcon } from "@/components/icons/pull-up-icon";
 // again later in Settings.
 export default function OnboardingExerciseCategoriesPage() {
   const router = useRouter();
+  const t = useT();
   const { data: categories, isLoading } = trpc.settings.exerciseCategories.useQuery();
 
   const updateCategories = trpc.settings.updateExerciseCategories.useMutation({
@@ -31,13 +33,11 @@ export default function OnboardingExerciseCategoriesPage() {
           <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
             <PullUpIcon size={24} />
           </div>
-          <h1 className="text-xl font-semibold">What do you train?</h1>
-          <p className="text-sm text-muted">
-            This picks which exercises show up by default — you can change it any time in Settings.
-          </p>
+          <h1 className="text-xl font-semibold">{t("onboarding.title")}</h1>
+          <p className="text-sm text-muted">{t("onboarding.hint")}</p>
         </div>
 
-        {isLoading && <p className="text-sm text-muted text-center">Loading…</p>}
+        {isLoading && <p className="text-sm text-muted text-center">{t("common.loading")}</p>}
 
         {categories && (
           <ExerciseCategoryForm
@@ -45,7 +45,7 @@ export default function OnboardingExerciseCategoriesPage() {
             initialWantsGym={categories.wantsGym}
             onSubmit={(values) => updateCategories.mutate(values)}
             isSubmitting={updateCategories.isPending}
-            submitLabel="Continue"
+            submitLabel={t("category.continue")}
           />
         )}
       </div>

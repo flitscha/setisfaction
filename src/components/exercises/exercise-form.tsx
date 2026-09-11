@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { GroupMultiSelect } from "./group-multi-select";
 import { TrackedFieldsFieldset } from "./tracked-fields-fieldset";
+import { useT } from "@/lib/i18n/context";
 
 export type ExerciseFormValues = {
   name: string;
@@ -30,6 +31,7 @@ export function ExerciseForm({
   submitLabel: string;
   errorMessage?: string | null;
 }) {
+  const t = useT();
   const [values, setValues] = useState<ExerciseFormValues>(
     initialValues ?? {
       name: "",
@@ -46,7 +48,7 @@ export function ExerciseForm({
     e.preventDefault();
 
     if (!values.tracksReps && !values.tracksTime && !values.tracksWeight) {
-      setValidationError("Track at least one of reps, time, or weight.");
+      setValidationError(t("exercises.trackAtLeastOne"));
       return;
     }
 
@@ -57,7 +59,7 @@ export function ExerciseForm({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Name</span>
+        <span className="text-sm font-medium">{t("exercises.name")}</span>
         <input
           type="text"
           value={values.name}
@@ -68,11 +70,11 @@ export function ExerciseForm({
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-medium">Description (optional)</span>
+        <span className="text-sm font-medium">{t("exercises.description")}</span>
         <Textarea
           value={values.description}
           onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
-          placeholder="Shown next to the exercise as a reminder of how to perform it"
+          placeholder={t("exercises.descriptionPlaceholder")}
           rows={2}
           className={inputClass}
         />
@@ -88,7 +90,7 @@ export function ExerciseForm({
       {(validationError || errorMessage) && <p className="text-red-600 text-sm">{validationError ?? errorMessage}</p>}
 
       <Button type="submit" disabled={isSubmitting}>
-        {isSubmitting ? "Saving…" : submitLabel}
+        {isSubmitting ? t("common.saving") : submitLabel}
       </Button>
     </form>
   );

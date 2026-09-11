@@ -9,6 +9,7 @@ import { AggregateCards } from "@/components/stats/aggregate-cards";
 import { ExerciseProgressView } from "@/components/stats/exercise-progress-view";
 import { CustomBadge } from "@/components/exercises/custom-badge";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
+import { useT } from "@/lib/i18n/context";
 import { useFriendProfile } from "./use-friend-profile";
 
 // A near-full-screen overlay (not a route) showing a friend's stats
@@ -35,6 +36,7 @@ export function FriendProfileModal() {
 }
 
 function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendProfile> }) {
+  const t = useT();
   const [exerciseId, setExerciseId] = useState<string | null>(null);
   const [compareWithMe, setCompareWithMe] = useState(false);
 
@@ -71,12 +73,12 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
       >
         <header className="bg-indigo-600 text-white px-4 py-3 flex items-center gap-3 shrink-0">
           {exerciseId ? (
-            <button onClick={() => setExerciseId(null)} aria-label="Back to overview" className="p-2 -m-2">
+            <button onClick={() => setExerciseId(null)} aria-label={t("friendProfile.backToOverview")} className="p-2 -m-2">
               <ArrowLeft size={18} />
             </button>
           ) : null}
-          <p className="font-medium truncate flex-1">{friend.username}&apos;s stats</p>
-          <button onClick={() => closeFriendProfile()} aria-label="Close" className="p-2 -m-2">
+          <p className="font-medium truncate flex-1">{t("friendProfile.statsTitle", { name: friend.username })}</p>
+          <button onClick={() => closeFriendProfile()} aria-label={t("friendProfile.close")} className="p-2 -m-2">
             <X size={20} />
           </button>
         </header>
@@ -96,7 +98,7 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
                     compareWithMe ? "bg-accent text-accent-foreground border-transparent" : ""
                   }`}
                 >
-                  Compare with me
+                  {t("friendProfile.compareWithMe")}
                 </button>
               )}
 
@@ -105,7 +107,7 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
                   exercise={activeExercise}
                   history={history}
                   primaryLabel={friend.username}
-                  comparison={compareWithMe ? { label: "You", history: myHistory ?? [] } : null}
+                  comparison={compareWithMe ? { label: t("stats.you"), history: myHistory ?? [] } : null}
                 />
               )}
             </>
@@ -116,9 +118,9 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
               )}
 
               <section className="flex flex-col gap-3">
-                <p className="text-sm font-medium px-1">By exercise</p>
+                <p className="text-sm font-medium px-1">{t("friendProfile.byExercise")}</p>
                 {exercises && trainedExercises.length === 0 && (
-                  <p className="text-sm text-muted px-1">No sets logged yet.</p>
+                  <p className="text-sm text-muted px-1">{t("friendProfile.noSetsLoggedYet")}</p>
                 )}
                 {sections.map((section) => (
                   <CollapsibleSection
@@ -138,7 +140,7 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
                           {exercise.userId !== null && <CustomBadge />}
                         </p>
                         <p className="text-sm text-muted whitespace-nowrap">
-                          {setCountByExercise.get(exercise.id) ?? 0} sets
+                          {t("friendProfile.setsCount", { count: setCountByExercise.get(exercise.id) ?? 0 })}
                         </p>
                       </button>
                     ))}

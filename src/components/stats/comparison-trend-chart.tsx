@@ -1,3 +1,7 @@
+"use client";
+
+import { useLocale, useT } from "@/lib/i18n/context";
+
 type Point = { date: Date; value: number };
 type Series = { label: string; points: Point[]; dashed?: boolean; colorClassName: string };
 
@@ -13,11 +17,14 @@ export function ComparisonTrendChart({
   series: Series[];
   formatValue?: (value: number) => string;
 }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const dateLocale = locale === "de" ? "de-DE" : "en-US";
   const nonEmpty = series.filter((s) => s.points.length > 0);
   const allPoints = nonEmpty.flatMap((s) => s.points);
 
   if (allPoints.length === 0) {
-    return <p className="text-sm text-muted">Not enough data yet.</p>;
+    return <p className="text-sm text-muted">{t("chart.notEnoughData")}</p>;
   }
 
   const width = 300;
@@ -92,10 +99,10 @@ export function ComparisonTrendChart({
       {!isSingleDay && (
         <>
           <text x={paddingLeft} y={height - 6} textAnchor="middle" fontSize={8} fill="currentColor" opacity={0.6}>
-            {new Date(minTime).toLocaleDateString(undefined, { month: "numeric", day: "numeric" })}
+            {new Date(minTime).toLocaleDateString(dateLocale, { month: "numeric", day: "numeric" })}
           </text>
           <text x={width - paddingRight} y={height - 6} textAnchor="middle" fontSize={8} fill="currentColor" opacity={0.6}>
-            {new Date(maxTime).toLocaleDateString(undefined, { month: "numeric", day: "numeric" })}
+            {new Date(maxTime).toLocaleDateString(dateLocale, { month: "numeric", day: "numeric" })}
           </text>
         </>
       )}

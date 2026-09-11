@@ -5,12 +5,15 @@ import { ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { useViewAsUser } from "@/components/admin/view-as-context";
 import { ExerciseCategoryForm } from "@/components/settings/exercise-category-form";
+import { LanguageForm } from "@/components/settings/language-form";
+import { useT } from "@/lib/i18n/context";
 
 // Reachable from the top bar's gear icon on any page, not just one fixed
 // parent — router.back() (rather than a fixed BackLink href) is what
 // actually gets you back to wherever you came from.
 export default function SettingsPage() {
   const router = useRouter();
+  const t = useT();
   const isReadOnly = useViewAsUser() !== null;
   const utils = trpc.useUtils();
   const { data: categories, isLoading } = trpc.settings.exerciseCategories.useQuery();
@@ -32,18 +35,26 @@ export default function SettingsPage() {
         className="flex items-center gap-1.5 py-2 -my-2 text-sm text-muted hover:text-foreground w-fit"
       >
         <ArrowLeft size={18} />
-        Back
+        {t("common.back")}
       </button>
 
-      <h1 className="text-xl font-semibold px-1">Settings</h1>
+      <h1 className="text-xl font-semibold px-1">{t("settings.title")}</h1>
 
       <section className="flex flex-col gap-3">
         <div className="px-1">
-          <p className="text-sm font-medium">Exercise catalog</p>
-          <p className="text-sm text-muted">Which standard exercises show up when you search or browse.</p>
+          <p className="text-sm font-medium">{t("settings.language")}</p>
+          <p className="text-sm text-muted">{t("settings.languageHint")}</p>
+        </div>
+        <LanguageForm />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <div className="px-1">
+          <p className="text-sm font-medium">{t("settings.exerciseCatalog")}</p>
+          <p className="text-sm text-muted">{t("settings.exerciseCatalogHint")}</p>
         </div>
 
-        {isLoading && <p className="text-sm text-muted px-1">Loading…</p>}
+        {isLoading && <p className="text-sm text-muted px-1">{t("common.loading")}</p>}
 
         {categories && !isReadOnly && (
           <>
@@ -53,19 +64,19 @@ export default function SettingsPage() {
               initialWantsGym={categories.wantsGym}
               onSubmit={(values) => updateCategories.mutate(values)}
               isSubmitting={updateCategories.isPending}
-              submitLabel="Save"
+              submitLabel={t("common.save")}
             />
-            {updateCategories.isSuccess && <p className="text-sm text-accent px-1">Saved.</p>}
+            {updateCategories.isSuccess && <p className="text-sm text-accent px-1">{t("common.saved")}</p>}
           </>
         )}
 
         {categories && isReadOnly && (
           <p className="text-sm px-1">
             {categories.wantsCalisthenics && categories.wantsGym
-              ? "Calisthenics and Gym"
+              ? t("category.calisthenicsAndGym")
               : categories.wantsGym
-                ? "Gym"
-                : "Calisthenics"}
+                ? t("category.gym")
+                : t("category.calisthenics")}
           </p>
         )}
       </section>

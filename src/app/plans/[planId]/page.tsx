@@ -6,11 +6,13 @@ import { trpc } from "@/lib/trpc/client";
 import { PlanForm, type PlanFormValues } from "@/components/plans/plan-form";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
+import { useT } from "@/lib/i18n/context";
 
 export default function EditTrainingPlanPage({ params }: { params: Promise<{ planId: string }> }) {
   const { planId } = use(params);
   const router = useRouter();
   const utils = trpc.useUtils();
+  const t = useT();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const { data: plan, isLoading } = trpc.trainingPlan.getById.useQuery({ id: planId });
@@ -40,8 +42,8 @@ export default function EditTrainingPlanPage({ params }: { params: Promise<{ pla
   if (isLoading) {
     return (
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <BackLink href="/plans" label="Plans" />
-        <p className="text-muted px-1 mt-4">Loading…</p>
+        <BackLink href="/plans" label={t("nav.plans")} />
+        <p className="text-muted px-1 mt-4">{t("common.loading")}</p>
       </main>
     );
   }
@@ -49,8 +51,8 @@ export default function EditTrainingPlanPage({ params }: { params: Promise<{ pla
   if (!plan) {
     return (
       <main className="flex-1 p-4 max-w-md mx-auto w-full">
-        <BackLink href="/plans" label="Plans" />
-        <p className="text-muted px-1 mt-4">Plan not found.</p>
+        <BackLink href="/plans" label={t("nav.plans")} />
+        <p className="text-muted px-1 mt-4">{t("plans.notFound")}</p>
       </main>
     );
   }
@@ -71,19 +73,19 @@ export default function EditTrainingPlanPage({ params }: { params: Promise<{ pla
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
-      <BackLink href="/plans" label="Plans" />
-      <h1 className="text-xl font-semibold px-1">Edit training plan</h1>
+      <BackLink href="/plans" label={t("nav.plans")} />
+      <h1 className="text-xl font-semibold px-1">{t("plans.editPlanTitle")}</h1>
 
       {plan.isActive ? (
         <div className="flex items-center justify-between gap-3 rounded-lg border border-card-border px-3 py-2">
-          <span className="text-sm font-medium">✓ Active plan</span>
+          <span className="text-sm font-medium">{t("plans.activePlan")}</span>
           <Button variant="ghost" onClick={() => deactivate.mutate()} disabled={deactivate.isPending}>
-            Deactivate
+            {t("plans.deactivate")}
           </Button>
         </div>
       ) : (
         <Button variant="secondary" onClick={() => setActive.mutate({ id: planId })} disabled={setActive.isPending}>
-          {setActive.isPending ? "Activating…" : "Set as active"}
+          {setActive.isPending ? t("plans.activating") : t("plans.setAsActive")}
         </Button>
       )}
 
@@ -92,18 +94,18 @@ export default function EditTrainingPlanPage({ params }: { params: Promise<{ pla
         initialValues={initialValues}
         onSubmit={handleSubmit}
         isSubmitting={updatePlan.isPending}
-        submitLabel="Save"
+        submitLabel={t("common.save")}
         errorMessage={updatePlan.error?.message}
       />
 
       <div className="border-t border-card-border pt-4">
         {!showDeleteConfirm ? (
           <Button variant="danger" onClick={() => setShowDeleteConfirm(true)}>
-            Delete plan
+            {t("plans.deletePlan")}
           </Button>
         ) : (
           <div className="flex flex-col gap-2">
-            <p className="text-sm">Delete &quot;{plan.name}&quot;?</p>
+            <p className="text-sm">{t("plans.deletePlanConfirm", { name: plan.name })}</p>
             <div className="flex gap-2">
               <Button
                 variant="primary"
@@ -111,10 +113,10 @@ export default function EditTrainingPlanPage({ params }: { params: Promise<{ pla
                 onClick={() => deletePlan.mutate({ id: planId })}
                 disabled={deletePlan.isPending}
               >
-                {deletePlan.isPending ? "Deleting…" : "Confirm delete"}
+                {deletePlan.isPending ? t("common.deleting") : t("exercises.confirmDelete")}
               </Button>
               <Button variant="ghost" onClick={() => setShowDeleteConfirm(false)}>
-                Cancel
+                {t("common.cancel")}
               </Button>
             </div>
           </div>
