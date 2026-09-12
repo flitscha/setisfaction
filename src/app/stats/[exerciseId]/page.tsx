@@ -5,11 +5,13 @@ import { trpc } from "@/lib/trpc/client";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { ExerciseProgressView } from "@/components/stats/exercise-progress-view";
 import { BackLink } from "@/components/ui/back-link";
-import { useT } from "@/lib/i18n/context";
+import { useLocale, useT } from "@/lib/i18n/context";
+import { translateExerciseName } from "@/lib/i18n/exercise-names";
 
 export default function ExerciseStatsPage({ params }: { params: Promise<{ exerciseId: string }> }) {
   const { exerciseId } = use(params);
   const t = useT();
+  const { locale } = useLocale();
   const appPath = useAppPath();
   const isViewingAs = useViewAsUser() !== null;
   const [compareFriendId, setCompareFriendId] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
       <BackLink href={appPath("/stats")} label={t("stats.title")} />
       <div className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold px-1">{exercise?.name ?? "…"}</h1>
+        <h1 className="text-xl font-semibold px-1">{exercise ? translateExerciseName(exercise, locale) : "…"}</h1>
         {exercise?.description && <p className="text-sm text-muted px-1">{exercise.description}</p>}
       </div>
 

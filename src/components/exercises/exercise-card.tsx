@@ -14,6 +14,8 @@ export function ExerciseCard({
   exercise: {
     id: string;
     userId: string | null;
+    // Already the name to display (translated for a standard exercise, if
+    // applicable) — see translateExerciseName in lib/i18n/exercise-names.ts.
     name: string;
     description: string | null;
     tracksReps: boolean;

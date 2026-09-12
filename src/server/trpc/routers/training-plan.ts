@@ -47,6 +47,7 @@ async function loadWorkoutProgress(workoutId: string, userId: string, dayStart: 
       id: workoutExercises.id,
       exerciseId: workoutExercises.exerciseId,
       exerciseName: exercises.name,
+      exerciseUserId: exercises.userId,
       tracksReps: exercises.tracksReps,
       tracksTime: exercises.tracksTime,
       tracksWeight: exercises.tracksWeight,

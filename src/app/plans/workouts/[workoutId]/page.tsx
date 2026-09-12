@@ -54,6 +54,7 @@ export default function EditWorkoutPage({ params }: { params: Promise<{ workoutI
     exercises: workout.exercises.map((e) => ({
       exerciseId: e.exerciseId,
       exerciseName: e.exerciseName,
+      exerciseUserId: e.exerciseUserId,
       tracksReps: e.tracksReps,
       tracksTime: e.tracksTime,
       tracksWeight: e.tracksWeight,

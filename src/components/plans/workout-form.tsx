@@ -5,7 +5,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { ExercisePicker, type PickableExercise } from "@/components/sets/exercise-picker";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
-import { useT } from "@/lib/i18n/context";
+import { useLocale, useT } from "@/lib/i18n/context";
+import { translateExerciseName } from "@/lib/i18n/exercise-names";
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
@@ -66,6 +67,7 @@ function serializeTarget(target: TargetDraft, setsCount: number, round: (n: numb
 export type WorkoutExerciseDraft = {
   exerciseId: string;
   exerciseName: string;
+  exerciseUserId: string | null;
   tracksReps: boolean;
   tracksTime: boolean;
   tracksWeight: boolean;
@@ -88,6 +90,7 @@ function draftFromExercise(exercise: PickableExercise): WorkoutExerciseDraft {
   return {
     exerciseId: exercise.id,
     exerciseName: exercise.name,
+    exerciseUserId: exercise.userId,
     tracksReps: exercise.tracksReps,
     tracksTime: exercise.tracksTime,
     tracksWeight: exercise.tracksWeight,
@@ -208,10 +211,15 @@ export function WorkoutForm({
   errorMessage?: string | null;
 }) {
   const t = useT();
+  const { locale } = useLocale();
   const [name, setName] = useState(initialValues?.name ?? "");
   const [exercises, setExercises] = useState<WorkoutExerciseDraft[]>(initialValues?.exercises ?? []);
   const [showPicker, setShowPicker] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  function displayName(exercise: { exerciseName: string; exerciseUserId: string | null }): string {
+    return translateExerciseName({ name: exercise.exerciseName, userId: exercise.exerciseUserId }, locale);
+  }
 
   function updateExercise(index: number, patch: Partial<WorkoutExerciseDraft>) {
     setExercises((prev) => prev.map((e, i) => (i === index ? { ...e, ...patch } : e)));
@@ -254,7 +262,7 @@ export function WorkoutForm({
     }
     for (const exercise of exercises) {
       if (!exercise.setsCount || Number(exercise.setsCount) < 1) {
-        setValidationError(t("workoutForm.setValidSets", { name: exercise.exerciseName }));
+        setValidationError(t("workoutForm.setValidSets", { name: displayName(exercise) }));
         return;
       }
     }
@@ -282,11 +290,11 @@ export function WorkoutForm({
           return (
             <div key={index} className="rounded-2xl border border-card-border bg-card shadow-sm p-3 flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="font-medium truncate">{exercise.exerciseName}</p>
+                <p className="font-medium truncate">{displayName(exercise)}</p>
                 <button
                   type="button"
                   onClick={() => removeExercise(index)}
-                  aria-label={t("workoutForm.removeExercise", { name: exercise.exerciseName })}
+                  aria-label={t("workoutForm.removeExercise", { name: displayName(exercise) })}
                   className="p-2 -m-2 text-muted hover:text-red-600 shrink-0"
                 >
                   <Trash2 size={18} />
@@ -382,7 +390,9 @@ export function WorkoutForm({
               // id, not by which slot it came from), so both entries would
               // silently complete together — confusing rather than useful.
               if (exercises.some((e) => e.exerciseId === exercise.id)) {
-                setValidationError(t("workoutForm.alreadyInWorkout", { name: exercise.name }));
+                setValidationError(
+                  t("workoutForm.alreadyInWorkout", { name: translateExerciseName(exercise, locale) }),
+                );
                 setShowPicker(false);
                 return;
               }

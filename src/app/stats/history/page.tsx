@@ -9,6 +9,7 @@ import { toLocalDateKey, getLocalDayRange } from "@/lib/date";
 import { heatColorClass, heatTextColorClass } from "@/lib/stats";
 import { BackLink } from "@/components/ui/back-link";
 import { useLocale, type TranslationKey } from "@/lib/i18n/context";
+import { translateExerciseName } from "@/lib/i18n/exercise-names";
 
 const WEEKDAY_LABEL_KEYS: TranslationKey[] = [
   "date.weekdayMon",
@@ -70,7 +71,7 @@ function HistoryPageContent() {
 
   const dayGroups = useMemo(() => {
     const filtered = (daySets ?? []).filter((s) => !allowedExerciseIds || allowedExerciseIds.has(s.exerciseId));
-    const map = new Map<string, { exerciseName: string; values: string[] }>();
+    const map = new Map<string, { exerciseId: string; exerciseName: string; values: string[] }>();
 
     for (const set of filtered) {
       const parts: string[] = [];
@@ -80,12 +81,17 @@ function HistoryPageContent() {
 
       const existing = map.get(set.exerciseId);
       if (existing) existing.values.push(parts.join("/"));
-      else map.set(set.exerciseId, { exerciseName: set.exerciseName, values: [parts.join("/")] });
+      else
+        map.set(set.exerciseId, {
+          exerciseId: set.exerciseId,
+          exerciseName: translateExerciseName({ name: set.exerciseName, userId: set.exerciseUserId }, locale),
+          values: [parts.join("/")],
+        });
     }
 
     return Array.from(map.values());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [daySets, groupId]);
+  }, [daySets, groupId, locale]);
 
   const year = monthCursor.getFullYear();
   const month = monthCursor.getMonth();
@@ -155,7 +161,7 @@ function HistoryPageContent() {
           ) : (
             <div className="flex flex-col gap-2">
               {dayGroups.map((group) => (
-                <div key={group.exerciseName} className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3">
+                <div key={group.exerciseId} className="rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3">
                   <p className="font-medium">{group.exerciseName}</p>
                   <p className="text-sm text-muted">{group.values.join(" · ")}</p>
                 </div>

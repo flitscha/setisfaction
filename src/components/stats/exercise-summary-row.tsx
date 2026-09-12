@@ -31,6 +31,7 @@ export function ExerciseSummaryRow({
   exercise: {
     id: string;
     userId: string | null;
+    // Already the name to display — see translateExerciseName in lib/i18n/exercise-names.ts.
     name: string;
     tracksReps: boolean;
     tracksTime: boolean;

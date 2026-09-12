@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { searchItems } from "@/lib/search";
+import { searchItemsWithFallback } from "@/lib/search";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { SearchInput } from "@/components/ui/search-input";
-import { useT } from "@/lib/i18n/context";
+import { useLocale, useT } from "@/lib/i18n/context";
+import { translateExerciseName, otherLanguageExerciseName } from "@/lib/i18n/exercise-names";
 
 export type PickableExercise = {
   id: string;
+  userId: string | null;
   name: string;
   tracksReps: boolean;
   tracksTime: boolean;
@@ -18,6 +20,9 @@ export type PickableExercise = {
 
 const TOP_COUNT = 7;
 
+// `exercise` here is a display copy (translated name) used for rendering
+// and search only — selecting it resolves back to the original via
+// onSelect, so callers always get the exercise's real (English) name.
 function ExerciseButton({ exercise, onSelect }: { exercise: PickableExercise; onSelect: (exercise: PickableExercise) => void }) {
   return (
     <button
@@ -32,6 +37,7 @@ function ExerciseButton({ exercise, onSelect }: { exercise: PickableExercise; on
 
 export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExercise) => void }) {
   const t = useT();
+  const { locale } = useLocale();
   const [query, setQuery] = useState("");
   const { data: all } = trpc.exercise.list.useQuery();
   const { data: groups } = trpc.group.list.useQuery();
@@ -45,11 +51,21 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
   const byFrequency = [...(all ?? [])].sort(
     (a, b) => (setCountByExercise.get(b.id) ?? 0) - (setCountByExercise.get(a.id) ?? 0),
   );
-  const topExercises = byFrequency.filter((e) => setCountByExercise.has(e.id)).slice(0, TOP_COUNT);
+  // Translated once here for both display and search; the real (English)
+  // exercise is looked back up by id in handleSelect below.
+  const byIdOriginal = new Map(byFrequency.map((e) => [e.id, e]));
+  const displayList = byFrequency.map((e) => ({ ...e, name: translateExerciseName(e, locale) }));
+  function handleSelect(displayExercise: PickableExercise) {
+    onSelect(byIdOriginal.get(displayExercise.id) ?? displayExercise);
+  }
 
-  const searched = query.trim() ? searchItems(byFrequency, query) : null;
+  const topExercises = displayList.filter((e) => setCountByExercise.has(e.id)).slice(0, TOP_COUNT);
 
-  const sections = groupItemsByGroup(byFrequency, groups ?? [], (exercise) => exercise.groupIds);
+  const searched = query.trim()
+    ? searchItemsWithFallback(displayList, query, (e) => otherLanguageExerciseName(e, locale))
+    : null;
+
+  const sections = groupItemsByGroup(displayList, groups ?? [], (exercise) => exercise.groupIds);
 
   return (
     <div className="flex flex-col gap-3">
@@ -60,7 +76,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
           <div className="flex flex-col gap-1">
             {searched.length === 0 && <p className="text-sm text-muted">{t("picker.noMatches")}</p>}
             {searched.map((exercise) => (
-              <ExerciseButton key={exercise.id} exercise={exercise} onSelect={onSelect} />
+              <ExerciseButton key={exercise.id} exercise={exercise} onSelect={handleSelect} />
             ))}
           </div>
         ) : (
@@ -69,7 +85,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
               <div className="flex flex-col gap-1">
                 <p className="text-sm font-medium text-muted px-1">{t("picker.mostTrained")}</p>
                 {topExercises.map((exercise) => (
-                  <ExerciseButton key={exercise.id} exercise={exercise} onSelect={onSelect} />
+                  <ExerciseButton key={exercise.id} exercise={exercise} onSelect={handleSelect} />
                 ))}
               </div>
             )}
@@ -86,7 +102,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
                 >
                   <div className="flex flex-col gap-1">
                     {section.items.map((exercise) => (
-                      <ExerciseButton key={exercise.id} exercise={exercise} onSelect={onSelect} />
+                      <ExerciseButton key={exercise.id} exercise={exercise} onSelect={handleSelect} />
                     ))}
                   </div>
                 </CollapsibleSection>

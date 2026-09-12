@@ -147,6 +147,7 @@ export const setRouter = router({
           id: sets.id,
           exerciseId: sets.exerciseId,
           exerciseName: exercises.name,
+          exerciseUserId: exercises.userId,
           tracksReps: exercises.tracksReps,
           tracksTime: exercises.tracksTime,
           tracksWeight: exercises.tracksWeight,

@@ -5,15 +5,17 @@ import Link from "next/link";
 import { Layers, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { searchItems } from "@/lib/search";
+import { searchItemsWithFallback } from "@/lib/search";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { ExerciseCard } from "@/components/exercises/exercise-card";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { SearchInput } from "@/components/ui/search-input";
-import { useT } from "@/lib/i18n/context";
+import { useLocale, useT } from "@/lib/i18n/context";
+import { translateExerciseName, otherLanguageExerciseName } from "@/lib/i18n/exercise-names";
 
 export default function ExercisesPage() {
   const t = useT();
+  const { locale } = useLocale();
   const isReadOnly = useViewAsUser() !== null;
   const appPath = useAppPath();
   const [query, setQuery] = useState("");
@@ -21,10 +23,17 @@ export default function ExercisesPage() {
   const { data: groups } = trpc.group.list.useQuery();
 
   const groupNameById = new Map((groups ?? []).map((g) => [g.id, g.name]));
+  // Translated once here (not inside ExerciseCard) so both the grouped
+  // browse view and the search below work off the same display names.
+  const displayExercises = (exercises ?? []).map((e) => ({ ...e, name: translateExerciseName(e, locale) }));
   // Searching drops the grouping in favor of one filtered, relevance-ranked
   // list — the point is to catch near-duplicates before creating one.
-  const searched = query.trim() ? searchItems(exercises ?? [], query) : null;
-  const sections = searched ? null : groupItemsByGroup(exercises ?? [], groups ?? [], (exercise) => exercise.groupIds);
+  // Matches against the name as shown and, when that finds nothing, falls
+  // back to the exercise's other-language name.
+  const searched = query.trim()
+    ? searchItemsWithFallback(displayExercises, query, (e) => otherLanguageExerciseName(e, locale))
+    : null;
+  const sections = searched ? null : groupItemsByGroup(displayExercises, groups ?? [], (exercise) => exercise.groupIds);
 
   return (
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-4">

@@ -4,19 +4,21 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath } from "@/components/admin/view-as-context";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { searchItems } from "@/lib/search";
+import { searchItemsWithFallback } from "@/lib/search";
 import { HeatmapCalendar } from "@/components/stats/heatmap-calendar";
 import { AggregateCards } from "@/components/stats/aggregate-cards";
 import { ExerciseSummaryRow } from "@/components/stats/exercise-summary-row";
 import { GroupSummaryRow } from "@/components/stats/group-summary-row";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { SearchInput } from "@/components/ui/search-input";
-import { useT } from "@/lib/i18n/context";
+import { useLocale, useT } from "@/lib/i18n/context";
+import { translateExerciseName, otherLanguageExerciseName } from "@/lib/i18n/exercise-names";
 
 const FAVORITES_COUNT = 7;
 
 export default function StatsPage() {
   const t = useT();
+  const { locale } = useLocale();
   const appPath = useAppPath();
   const [query, setQuery] = useState("");
   const { data: heatmapData } = trpc.stats.heatmap.useQuery();
@@ -26,14 +28,19 @@ export default function StatsPage() {
   const { data: groupAggregates } = trpc.stats.groupAggregates.useQuery();
 
   const setCountByExercise = new Map((aggregates?.exerciseSetCounts ?? []).map((e) => [e.exerciseId, e.setCount]));
-  const sortedExercises = [...(exercises ?? [])].sort(
+  // Translated once here (not inside ExerciseSummaryRow) so favorites,
+  // search, and the grouped list below all work off the same display names.
+  const displayExercises = (exercises ?? []).map((e) => ({ ...e, name: translateExerciseName(e, locale) }));
+  const sortedExercises = [...displayExercises].sort(
     (a, b) => (setCountByExercise.get(b.id) ?? 0) - (setCountByExercise.get(a.id) ?? 0),
   );
   const trainedExercises = sortedExercises.filter((e) => (setCountByExercise.get(e.id) ?? 0) > 0);
   const favorites = trainedExercises.slice(0, FAVORITES_COUNT);
   // Searching drops the grouping in favor of one filtered list, same as the
   // Exercises page, so a typo still finds the right exercise's chart.
-  const searchedExercises = query.trim() ? searchItems(sortedExercises, query) : null;
+  const searchedExercises = query.trim()
+    ? searchItemsWithFallback(sortedExercises, query, (e) => otherLanguageExerciseName(e, locale))
+    : null;
   // Only exercises with at least one logged set — an exercise never trained
   // has nothing to show here, so it'd just be clutter.
   const exerciseSections = searchedExercises

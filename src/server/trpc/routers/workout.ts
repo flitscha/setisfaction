@@ -61,6 +61,7 @@ export const workoutRouter = router({
         id: workoutExercises.id,
         exerciseId: workoutExercises.exerciseId,
         exerciseName: exercises.name,
+        exerciseUserId: exercises.userId,
         tracksReps: exercises.tracksReps,
         tracksTime: exercises.tracksTime,
         tracksWeight: exercises.tracksWeight,

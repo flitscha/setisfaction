@@ -8,7 +8,8 @@ import { GroupMultiSelect } from "@/components/exercises/group-multi-select";
 import { TrackedFieldsFieldset, type TrackedFields } from "@/components/exercises/tracked-fields-fieldset";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
-import { useT } from "@/lib/i18n/context";
+import { useLocale, useT } from "@/lib/i18n/context";
+import { translateExerciseName } from "@/lib/i18n/exercise-names";
 
 export default function EditExercisePage({ params }: { params: Promise<{ exerciseId: string }> }) {
   const { exerciseId } = use(params);
@@ -63,6 +64,7 @@ function StandardExercisePage({
   const router = useRouter();
   const utils = trpc.useUtils();
   const t = useT();
+  const { locale } = useLocale();
   const [groupIds, setGroupIds] = useState(exercise.groupIds);
   const [trackedFields, setTrackedFields] = useState<TrackedFields>({
     tracksReps: exercise.tracksReps,
@@ -91,7 +93,7 @@ function StandardExercisePage({
     <main className="flex-1 p-4 max-w-md mx-auto w-full flex flex-col gap-6">
       <BackLink href="/exercises" label={t("exercises.title")} />
 
-      <h1 className="text-xl font-semibold px-1">{exercise.name}</h1>
+      <h1 className="text-xl font-semibold px-1">{translateExerciseName({ name: exercise.name, userId: null }, locale)}</h1>
 
       {exercise.description && <p className="text-sm text-muted px-1">{exercise.description}</p>}
 

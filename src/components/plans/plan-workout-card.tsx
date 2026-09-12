@@ -9,7 +9,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SetForm, type SetFormValues } from "@/components/sets/set-form";
 import { RestTimer } from "./rest-timer";
-import { useT, type TranslationKey } from "@/lib/i18n/context";
+import { useLocale, useT, type TranslationKey } from "@/lib/i18n/context";
+import { translateExerciseName } from "@/lib/i18n/exercise-names";
 
 type TodayWorkout = NonNullable<inferRouterOutputs<AppRouter>["trainingPlan"]["todayWorkout"]>;
 type PlanExercise = TodayWorkout["exercises"][number];
@@ -91,6 +92,7 @@ export function PlanWorkoutCard({
   todayRangeKey: { dayStart: Date; dayEnd: Date };
 }) {
   const t = useT();
+  const { locale } = useLocale();
   const utils = trpc.useUtils();
   const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
   const [pendingExerciseId, setPendingExerciseId] = useState<string | null>(null);
@@ -129,6 +131,7 @@ export function PlanWorkoutCard({
             id: `optimistic-${crypto.randomUUID()}`,
             exerciseId: exercise.exerciseId,
             exerciseName: exercise.exerciseName,
+            exerciseUserId: exercise.exerciseUserId,
             tracksReps: exercise.tracksReps,
             tracksTime: exercise.tracksTime,
             tracksWeight: exercise.tracksWeight,
@@ -171,7 +174,7 @@ export function PlanWorkoutCard({
           // is a pointless flash rather than a real rest period.
           if (exercise.restSeconds) {
             setRest({
-              exerciseName: exercise.exerciseName,
+              exerciseName: translateExerciseName({ name: exercise.exerciseName, userId: exercise.exerciseUserId }, locale),
               seconds: exercise.restSeconds,
               setNumber: slotIndex + 1,
               setsCount: exercise.setsCount,
@@ -219,7 +222,9 @@ export function PlanWorkoutCard({
 
             return (
               <div key={exercise.id} className="border-t border-card-border pt-3 flex flex-col gap-2">
-                <p className="font-medium">{exercise.exerciseName}</p>
+                <p className="font-medium">
+                  {translateExerciseName({ name: exercise.exerciseName, userId: exercise.exerciseUserId }, locale)}
+                </p>
 
                 <div className="flex flex-wrap gap-2">
                   {Array.from({ length: exercise.setsCount }, (_, i) => (

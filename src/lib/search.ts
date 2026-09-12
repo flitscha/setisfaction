@@ -101,3 +101,26 @@ export function searchItems<T extends { name: string; description?: string | nul
     .slice(0, FALLBACK_LIMIT)
     .map(({ item }) => item);
 }
+
+// Same as searchItems, but when the displayed-language search comes up
+// empty, retries against each item's other-language name before giving up —
+// so an exercise translated for display (e.g. "Liegestütze" while the app
+// is in German) still turns up for someone who types its English name, and
+// vice versa. Returns the *original* items either way, never the
+// alternate-named stand-ins used only to re-run the search.
+export function searchItemsWithFallback<T extends { id: string; name: string; description?: string | null }>(
+  items: T[],
+  query: string,
+  alternateName: (item: T) => string | undefined,
+): T[] {
+  const primary = searchItems(items, query);
+  if (primary.length > 0 || !query.trim()) return primary;
+
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const withAlternateNames = items.flatMap((item) => {
+    const alt = alternateName(item);
+    return alt ? [{ ...item, name: alt }] : [];
+  });
+
+  return searchItems(withAlternateNames, query).map((match) => byId.get(match.id)!);
+}

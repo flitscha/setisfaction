@@ -10,7 +10,8 @@ import { SetForm, type SetFormValues } from "@/components/sets/set-form";
 import { TodayExerciseCard } from "@/components/sets/today-exercise-card";
 import { Modal } from "@/components/ui/modal";
 import { PlanWorkoutCard } from "@/components/plans/plan-workout-card";
-import { useT } from "@/lib/i18n/context";
+import { useLocale, useT } from "@/lib/i18n/context";
+import { translateExerciseName } from "@/lib/i18n/exercise-names";
 
 type EditingSet = {
   id: string;
@@ -22,6 +23,7 @@ type EditingSet = {
 
 export default function TodayPage() {
   const t = useT();
+  const { locale } = useLocale();
   const isReadOnly = useViewAsUser() !== null;
   const now = useMemo(() => new Date(), []);
   const { start, end } = useMemo(() => getLocalDayRange(now), [now]);
@@ -61,6 +63,7 @@ export default function TodayPage() {
           id: `optimistic-${crypto.randomUUID()}`,
           exerciseId: activeExercise.id,
           exerciseName: activeExercise.name,
+          exerciseUserId: activeExercise.userId,
           tracksReps: activeExercise.tracksReps,
           tracksTime: activeExercise.tracksTime,
           tracksWeight: activeExercise.tracksWeight,
@@ -109,6 +112,7 @@ export default function TodayPage() {
       {
         exerciseId: string;
         exerciseName: string;
+        exerciseUserId: string | null;
         tracksReps: boolean;
         tracksTime: boolean;
         tracksWeight: boolean;
@@ -124,6 +128,7 @@ export default function TodayPage() {
         map.set(set.exerciseId, {
           exerciseId: set.exerciseId,
           exerciseName: set.exerciseName,
+          exerciseUserId: set.exerciseUserId,
           tracksReps: set.tracksReps,
           tracksTime: set.tracksTime,
           tracksWeight: set.tracksWeight,
@@ -143,6 +148,7 @@ export default function TodayPage() {
         {
           exerciseId: activeExercise.id,
           exerciseName: activeExercise.name,
+          exerciseUserId: activeExercise.userId,
           tracksReps: activeExercise.tracksReps,
           tracksTime: activeExercise.tracksTime,
           tracksWeight: activeExercise.tracksWeight,
@@ -225,7 +231,7 @@ export default function TodayPage() {
           return (
             <TodayExerciseCard
               key={group.exerciseId}
-              exerciseName={group.exerciseName}
+              exerciseName={translateExerciseName({ name: group.exerciseName, userId: group.exerciseUserId }, locale)}
               sets={group.sets}
               onAddSet={
                 isReadOnly
@@ -235,6 +241,7 @@ export default function TodayPage() {
                       setActiveExercise({
                         id: group.exerciseId,
                         name: group.exerciseName,
+                        userId: group.exerciseUserId,
                         tracksReps: group.tracksReps,
                         tracksTime: group.tracksTime,
                         tracksWeight: group.tracksWeight,

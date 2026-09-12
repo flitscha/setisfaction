@@ -9,7 +9,8 @@ import { AggregateCards } from "@/components/stats/aggregate-cards";
 import { ExerciseProgressView } from "@/components/stats/exercise-progress-view";
 import { CustomBadge } from "@/components/exercises/custom-badge";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
-import { useT } from "@/lib/i18n/context";
+import { useLocale, useT } from "@/lib/i18n/context";
+import { translateExerciseName } from "@/lib/i18n/exercise-names";
 import { useFriendProfile } from "./use-friend-profile";
 
 // A near-full-screen overlay (not a route) showing a friend's stats
@@ -37,6 +38,7 @@ export function FriendProfileModal() {
 
 function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendProfile> }) {
   const t = useT();
+  const { locale } = useLocale();
   const [exerciseId, setExerciseId] = useState<string | null>(null);
   const [compareWithMe, setCompareWithMe] = useState(false);
 
@@ -87,7 +89,7 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
           {exerciseId && activeExercise ? (
             <>
               <div className="flex flex-col gap-1">
-                <h2 className="text-lg font-semibold px-1">{activeExercise.name}</h2>
+                <h2 className="text-lg font-semibold px-1">{translateExerciseName(activeExercise, locale)}</h2>
                 {activeExercise.description && <p className="text-sm text-muted px-1">{activeExercise.description}</p>}
               </div>
 
@@ -136,7 +138,7 @@ function FriendProfileModalContent({ friend }: { friend: NonNullable<OpenFriendP
                         className="w-full text-left rounded-2xl border border-card-border bg-card shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:brightness-95 dark:hover:brightness-125"
                       >
                         <p className="font-medium flex items-center gap-2 min-w-0">
-                          <span className="truncate">{exercise.name}</span>
+                          <span className="truncate">{translateExerciseName(exercise, locale)}</span>
                           {exercise.userId !== null && <CustomBadge />}
                         </p>
                         <p className="text-sm text-muted whitespace-nowrap">
