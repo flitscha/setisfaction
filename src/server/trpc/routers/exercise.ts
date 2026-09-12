@@ -153,36 +153,41 @@ export const exerciseRouter = router({
   list: readProcedure.query(({ ctx }) => listVisibleExercises(ctx.viewUserId)),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
-    const [forkedAwayIds, categoryHiddenIds] = await Promise.all([
-      getForkedAwayStandardIds(ctx.viewUserId),
-      getCategoryHiddenIds(ctx.viewUserId),
-    ]);
-    const hiddenIds = [...forkedAwayIds, ...categoryHiddenIds];
+    const exerciseQuery = (async () => {
+      const [forkedAwayIds, categoryHiddenIds] = await Promise.all([
+        getForkedAwayStandardIds(ctx.viewUserId),
+        getCategoryHiddenIds(ctx.viewUserId),
+      ]);
+      const hiddenIds = [...forkedAwayIds, ...categoryHiddenIds];
 
-    const [exercise] = await db
-      .select()
-      .from(exercises)
-      .where(
-        and(
-          eq(exercises.id, input.id),
-          or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)),
-          hiddenIds.length > 0 ? notInArray(exercises.id, hiddenIds) : undefined,
-        ),
-      );
+      const [exercise] = await db
+        .select()
+        .from(exercises)
+        .where(
+          and(
+            eq(exercises.id, input.id),
+            or(eq(exercises.userId, ctx.viewUserId), isNull(exercises.userId)),
+            hiddenIds.length > 0 ? notInArray(exercises.id, hiddenIds) : undefined,
+          ),
+        );
+      return exercise;
+    })();
+
+    // setsCount and groupIds only need input.id, known upfront — run
+    // alongside the exercise lookup above instead of waiting on it.
+    const [exercise, [setsCountRow], groupIdsByExercise] = await Promise.all([
+      exerciseQuery,
+      // Scoped to this user's own sets — a standard exercise can be shared
+      // with sets logged by other users too, which aren't this viewer's to count.
+      db.select({ value: count() }).from(sets).where(and(eq(sets.exerciseId, input.id), eq(sets.userId, ctx.viewUserId))),
+      getGroupIdsByExercise([input.id], ctx.viewUserId),
+    ]);
 
     if (!exercise) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
-    // Scoped to this user's own sets — a standard exercise can be shared
-    // with sets logged by other users too, which aren't this viewer's to count.
-    const [{ value: setsCount }] = await db
-      .select({ value: count() })
-      .from(sets)
-      .where(and(eq(sets.exerciseId, input.id), eq(sets.userId, ctx.viewUserId)));
-    const groupIdsByExercise = await getGroupIdsByExercise([exercise.id], ctx.viewUserId);
-
-    return { ...exercise, setsCount, groupIds: groupIdsByExercise.get(exercise.id) ?? [] };
+    return { ...exercise, setsCount: setsCountRow.value, groupIds: groupIdsByExercise.get(exercise.id) ?? [] };
   }),
 
   create: writeProcedure.input(createExerciseInput).mutation(async ({ ctx, input }) => {

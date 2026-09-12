@@ -7,28 +7,31 @@ import { readProcedure, router } from "../trpc";
 // Exported so community.ts can build the same summary for a friend's profile,
 // after checking friendship — this has no access control of its own.
 export async function getAggregatesForUser(userId: string) {
-  const [totals] = await db
-    .select({
-      totalSets: count(),
-      totalTrainingDays: sql<number>`count(distinct date_trunc('day', ${sets.performedAt}))`,
-    })
-    .from(sets)
-    .where(eq(sets.userId, userId));
-
   const setCount = count(sets.id);
-  const exerciseSetCounts = await db
-    .select({
-      exerciseId: exercises.id,
-      name: exercises.name,
-      setCount,
-    })
-    .from(exercises)
-    .innerJoin(sets, eq(sets.exerciseId, exercises.id))
-    // sets.userId, not exercises.userId — a standard exercise's sets are
-    // this user's own, even though the exercise itself isn't user-owned.
-    .where(eq(sets.userId, userId))
-    .groupBy(exercises.id)
-    .orderBy(desc(setCount));
+  // Independent of each other — run together instead of waiting on one
+  // round trip before starting the next.
+  const [[totals], exerciseSetCounts] = await Promise.all([
+    db
+      .select({
+        totalSets: count(),
+        totalTrainingDays: sql<number>`count(distinct date_trunc('day', ${sets.performedAt}))`,
+      })
+      .from(sets)
+      .where(eq(sets.userId, userId)),
+    db
+      .select({
+        exerciseId: exercises.id,
+        name: exercises.name,
+        setCount,
+      })
+      .from(exercises)
+      .innerJoin(sets, eq(sets.exerciseId, exercises.id))
+      // sets.userId, not exercises.userId — a standard exercise's sets are
+      // this user's own, even though the exercise itself isn't user-owned.
+      .where(eq(sets.userId, userId))
+      .groupBy(exercises.id)
+      .orderBy(desc(setCount)),
+  ]);
 
   return {
     totalSets: totals.totalSets,

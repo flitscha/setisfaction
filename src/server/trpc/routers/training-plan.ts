@@ -92,18 +92,21 @@ export const trainingPlanRouter = router({
   ),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
-    const [plan] = await db
-      .select()
-      .from(trainingPlans)
-      .where(and(eq(trainingPlans.id, input.id), eq(trainingPlans.userId, ctx.viewUserId)));
+    // Both queries key off input.id alone — run together rather than
+    // waiting on the plan row before asking for its schedule.
+    const [[plan], scheduleRows] = await Promise.all([
+      db
+        .select()
+        .from(trainingPlans)
+        .where(and(eq(trainingPlans.id, input.id), eq(trainingPlans.userId, ctx.viewUserId))),
+      db
+        .select({ weekday: trainingPlanWorkouts.weekday, workoutId: trainingPlanWorkouts.workoutId })
+        .from(trainingPlanWorkouts)
+        .where(eq(trainingPlanWorkouts.trainingPlanId, input.id)),
+    ]);
     if (!plan) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
-
-    const scheduleRows = await db
-      .select({ weekday: trainingPlanWorkouts.weekday, workoutId: trainingPlanWorkouts.workoutId })
-      .from(trainingPlanWorkouts)
-      .where(eq(trainingPlanWorkouts.trainingPlanId, input.id));
 
     return { ...plan, schedule: scheduleRows };
   }),
@@ -260,9 +263,12 @@ export const trainingPlanRouter = router({
       const yesterdayWorkoutId = scheduleRows.find((r) => r.weekday === input.yesterdayWeekday)?.workoutId ?? null;
 
       async function workoutCard(workoutId: string, dayStart: Date, dayEnd: Date, isCatchUp: boolean) {
-        const progress = await loadWorkoutProgress(workoutId, ctx.viewUserId, dayStart, dayEnd);
+        // Both only need workoutId, known upfront — run together.
+        const [progress, [workout]] = await Promise.all([
+          loadWorkoutProgress(workoutId, ctx.viewUserId, dayStart, dayEnd),
+          db.select({ name: workouts.name }).from(workouts).where(eq(workouts.id, workoutId)),
+        ]);
         if (!progress) return null;
-        const [workout] = await db.select({ name: workouts.name }).from(workouts).where(eq(workouts.id, workoutId));
         return { workoutId, workoutName: workout?.name ?? "Workout", isCatchUp, ...progress };
       }
 

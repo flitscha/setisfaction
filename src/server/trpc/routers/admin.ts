@@ -17,14 +17,16 @@ export const adminRouter = router({
   isAdmin: protectedProcedure.query(({ ctx }) => ctx.isAdmin),
 
   listUsers: adminProcedure.query(async () => {
-    const authUsers = (await db.execute(
-      sql`select id, email, created_at from auth.users order by created_at`,
-    )) as unknown as AuthUserRow[];
+    // None of these three depend on each other — only resolveUsernames
+    // below needs authUsers, so run all three together first.
+    const [authUsersRaw, profileRows, setCounts] = await Promise.all([
+      db.execute(sql`select id, email, created_at from auth.users order by created_at`),
+      db.select().from(profiles),
+      db.select({ userId: sets.userId, setCount: count() }).from(sets).groupBy(sets.userId),
+    ]);
+    const authUsers = authUsersRaw as unknown as AuthUserRow[];
 
-    const profileRows = await db.select().from(profiles);
     const isAdminByUserId = new Map(profileRows.map((p) => [p.userId, p.isAdmin]));
-
-    const setCounts = await db.select({ userId: sets.userId, setCount: count() }).from(sets).groupBy(sets.userId);
     const setCountByUserId = new Map(setCounts.map((row) => [row.userId, row.setCount]));
 
     const usernameByUserId = await resolveUsernames(authUsers);

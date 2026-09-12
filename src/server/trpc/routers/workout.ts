@@ -48,33 +48,36 @@ export const workoutRouter = router({
   ),
 
   getById: readProcedure.input(z.object({ id: z.string().uuid() })).query(async ({ ctx, input }) => {
-    const [workout] = await db
-      .select()
-      .from(workouts)
-      .where(and(eq(workouts.id, input.id), eq(workouts.userId, ctx.viewUserId)));
+    // Both queries key off input.id alone — run together rather than
+    // waiting on the workout row before asking for its exercises.
+    const [[workout], exerciseRows] = await Promise.all([
+      db
+        .select()
+        .from(workouts)
+        .where(and(eq(workouts.id, input.id), eq(workouts.userId, ctx.viewUserId))),
+      db
+        .select({
+          id: workoutExercises.id,
+          exerciseId: workoutExercises.exerciseId,
+          exerciseName: exercises.name,
+          exerciseUserId: exercises.userId,
+          tracksReps: exercises.tracksReps,
+          tracksTime: exercises.tracksTime,
+          tracksWeight: exercises.tracksWeight,
+          setsCount: workoutExercises.setsCount,
+          targetReps: workoutExercises.targetReps,
+          targetTimeSeconds: workoutExercises.targetTimeSeconds,
+          targetWeightKg: workoutExercises.targetWeightKg,
+          restSeconds: workoutExercises.restSeconds,
+        })
+        .from(workoutExercises)
+        .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
+        .where(eq(workoutExercises.workoutId, input.id))
+        .orderBy(asc(workoutExercises.position)),
+    ]);
     if (!workout) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
-
-    const exerciseRows = await db
-      .select({
-        id: workoutExercises.id,
-        exerciseId: workoutExercises.exerciseId,
-        exerciseName: exercises.name,
-        exerciseUserId: exercises.userId,
-        tracksReps: exercises.tracksReps,
-        tracksTime: exercises.tracksTime,
-        tracksWeight: exercises.tracksWeight,
-        setsCount: workoutExercises.setsCount,
-        targetReps: workoutExercises.targetReps,
-        targetTimeSeconds: workoutExercises.targetTimeSeconds,
-        targetWeightKg: workoutExercises.targetWeightKg,
-        restSeconds: workoutExercises.restSeconds,
-      })
-      .from(workoutExercises)
-      .innerJoin(exercises, eq(exercises.id, workoutExercises.exerciseId))
-      .where(eq(workoutExercises.workoutId, input.id))
-      .orderBy(asc(workoutExercises.position));
 
     return { ...workout, exercises: exerciseRows };
   }),
