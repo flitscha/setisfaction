@@ -86,41 +86,48 @@ export function searchItems<T extends { name: string; description?: string | nul
   items: T[],
   query: string,
 ): T[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return items;
-
-  const exactMatches = items.filter((item) => isExactWordMatch(item.name, q));
-  if (exactMatches.length > 0) {
-    return [...exactMatches].sort((a, b) => a.name.length - b.name.length || a.name.localeCompare(b.name));
-  }
-
-  return items
-    .map((item) => ({ item, score: scoreItem(item, q) }))
-    .filter(({ score }) => score >= FALLBACK_SCORE_THRESHOLD)
-    .sort((a, b) => b.score - a.score || a.item.name.length - b.item.name.length)
-    .slice(0, FALLBACK_LIMIT)
-    .map(({ item }) => item);
+  return searchItemsBilingual(items, query, () => undefined);
 }
 
-// Same as searchItems, but when the displayed-language search comes up
-// empty, retries against each item's other-language name before giving up —
-// so an exercise translated for display (e.g. "Liegestütze" while the app
-// is in German) still turns up for someone who types its English name, and
-// vice versa. Returns the *original* items either way, never the
-// alternate-named stand-ins used only to re-run the search.
-export function searchItemsWithFallback<T extends { id: string; name: string; description?: string | null }>(
+// Same two-tier algorithm as searchItems, but each item is also checked
+// against its "other language" name (e.g. an exercise translated for
+// display, like "Klimmzüge" for "Pull-Ups") — not merely as a fallback for
+// when the primary-language search comes up empty. Searching "pull ups"
+// must find plain "Pull-Ups" (shown as "Klimmzüge") right alongside
+// "Australian Pull-Ups", not just when nothing else matched at all —
+// otherwise the one exercise someone is actually looking for can be the one
+// that's missing, with an unrelated, weaker match masking its absence.
+// Always returns the original items, never the alternate-named stand-ins
+// used only to widen the match.
+export function searchItemsBilingual<T extends { name: string; description?: string | null }>(
   items: T[],
   query: string,
   alternateName: (item: T) => string | undefined,
 ): T[] {
-  const primary = searchItems(items, query);
-  if (primary.length > 0 || !query.trim()) return primary;
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
 
-  const byId = new Map(items.map((item) => [item.id, item]));
-  const withAlternateNames = items.flatMap((item) => {
-    const alt = alternateName(item);
-    return alt ? [{ ...item, name: alt }] : [];
-  });
+  const exactMatches = items
+    .map((item) => {
+      const alt = alternateName(item);
+      const matchedName = isExactWordMatch(item.name, q) ? item.name : alt && isExactWordMatch(alt, q) ? alt : null;
+      return matchedName === null ? null : { item, matchedName };
+    })
+    .filter((match): match is { item: T; matchedName: string } => match !== null);
+  if (exactMatches.length > 0) {
+    return exactMatches
+      .sort((a, b) => a.matchedName.length - b.matchedName.length || a.matchedName.localeCompare(b.matchedName))
+      .map(({ item }) => item);
+  }
 
-  return searchItems(withAlternateNames, query).map((match) => byId.get(match.id)!);
+  return items
+    .map((item) => {
+      const alt = alternateName(item);
+      const score = Math.max(scoreItem(item, q), alt ? scoreItem({ ...item, name: alt }, q) : 0);
+      return { item, score };
+    })
+    .filter(({ score }) => score >= FALLBACK_SCORE_THRESHOLD)
+    .sort((a, b) => b.score - a.score || a.item.name.length - b.item.name.length)
+    .slice(0, FALLBACK_LIMIT)
+    .map(({ item }) => item);
 }

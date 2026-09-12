@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Layers, Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { searchItemsWithFallback } from "@/lib/search";
+import { searchItemsBilingual } from "@/lib/search";
 import { useAppPath, useViewAsUser } from "@/components/admin/view-as-context";
 import { ExerciseCard } from "@/components/exercises/exercise-card";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
@@ -31,7 +31,7 @@ export default function ExercisesPage() {
   // Matches against the name as shown and, when that finds nothing, falls
   // back to the exercise's other-language name.
   const searched = query.trim()
-    ? searchItemsWithFallback(displayExercises, query, (e) => otherLanguageExerciseName(e, locale))
+    ? searchItemsBilingual(displayExercises, query, (e) => otherLanguageExerciseName(e, locale))
     : null;
   const sections = searched ? null : groupItemsByGroup(displayExercises, groups ?? [], (exercise) => exercise.groupIds);
 

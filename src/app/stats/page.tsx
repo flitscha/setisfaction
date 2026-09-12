@@ -4,7 +4,7 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { useAppPath } from "@/components/admin/view-as-context";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { searchItemsWithFallback } from "@/lib/search";
+import { searchItemsBilingual } from "@/lib/search";
 import { HeatmapCalendar } from "@/components/stats/heatmap-calendar";
 import { AggregateCards } from "@/components/stats/aggregate-cards";
 import { ExerciseSummaryRow } from "@/components/stats/exercise-summary-row";
@@ -39,7 +39,7 @@ export default function StatsPage() {
   // Searching drops the grouping in favor of one filtered list, same as the
   // Exercises page, so a typo still finds the right exercise's chart.
   const searchedExercises = query.trim()
-    ? searchItemsWithFallback(sortedExercises, query, (e) => otherLanguageExerciseName(e, locale))
+    ? searchItemsBilingual(sortedExercises, query, (e) => otherLanguageExerciseName(e, locale))
     : null;
   // Only exercises with at least one logged set — an exercise never trained
   // has nothing to show here, so it'd just be clutter.

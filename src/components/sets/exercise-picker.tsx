@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import { groupItemsByGroup } from "@/lib/group-by";
-import { searchItemsWithFallback } from "@/lib/search";
+import { searchItemsBilingual } from "@/lib/search";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { SearchInput } from "@/components/ui/search-input";
 import { useLocale, useT } from "@/lib/i18n/context";
@@ -62,7 +62,7 @@ export function ExercisePicker({ onSelect }: { onSelect: (exercise: PickableExer
   const topExercises = displayList.filter((e) => setCountByExercise.has(e.id)).slice(0, TOP_COUNT);
 
   const searched = query.trim()
-    ? searchItemsWithFallback(displayList, query, (e) => otherLanguageExerciseName(e, locale))
+    ? searchItemsBilingual(displayList, query, (e) => otherLanguageExerciseName(e, locale))
     : null;
 
   const sections = groupItemsByGroup(displayList, groups ?? [], (exercise) => exercise.groupIds);
