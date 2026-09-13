@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
 import { useViewAsUser } from "@/components/admin/view-as-context";
-import { getLocalDayRange } from "@/lib/date";
+import { getLocalDayRange, useNow } from "@/lib/date";
 import { ExercisePicker, type PickableExercise } from "@/components/sets/exercise-picker";
 import { SetForm, type SetFormValues } from "@/components/sets/set-form";
 import { TodayExerciseCard } from "@/components/sets/today-exercise-card";
@@ -25,7 +25,7 @@ export default function TodayPage() {
   const t = useT();
   const { locale } = useLocale();
   const isReadOnly = useViewAsUser() !== null;
-  const now = useMemo(() => new Date(), []);
+  const now = useNow();
   const { start, end } = useMemo(() => getLocalDayRange(now), [now]);
   const yesterdayRef = useMemo(() => new Date(now.getTime() - 24 * 60 * 60 * 1000), [now]);
   const { start: yesterdayStart, end: yesterdayEnd } = useMemo(() => getLocalDayRange(yesterdayRef), [yesterdayRef]);

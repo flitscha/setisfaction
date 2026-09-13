@@ -1,3 +1,33 @@
+import { useEffect, useState } from "react";
+
+// "Now", refreshed whenever the tab/PWA regains visibility or focus — not
+// just once at mount. A page that computes today's date range via a plain
+// `useMemo(() => new Date(), [])` freezes that instant for as long as the
+// component stays mounted; an installed PWA left open across midnight (very
+// plausible for a workout app opened once per day) would keep showing
+// yesterday's day range until something forces a remount. Falls back to a
+// periodic timer too, since visibilitychange isn't perfectly reliable on
+// every platform.
+export function useNow(): Date {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    function refresh() {
+      if (document.visibilityState === "visible") setNow(new Date());
+    }
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    const interval = setInterval(refresh, 5 * 60 * 1000);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+      clearInterval(interval);
+    };
+  }, []);
+
+  return now;
+}
+
 // Local midnight boundaries for "today", computed in the browser so the server
 // doesn't need to guess the user's timezone.
 export function getLocalDayRange(reference = new Date()): { start: Date; end: Date } {
