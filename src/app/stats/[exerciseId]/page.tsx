@@ -15,14 +15,17 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
   const appPath = useAppPath();
   const isViewingAs = useViewAsUser() !== null;
   const [compareFriendId, setCompareFriendId] = useState<string | null>(null);
-  // The friend list is only worth fetching once someone actually asks to
-  // compare — loading it unconditionally on every standard exercise's page
-  // used to add a second, sequential round trip after the exercise and its
-  // history had already loaded, for a feature most visits never use.
-  const [showCompareOptions, setShowCompareOptions] = useState(false);
 
   const { data: exercise } = trpc.exercise.getById.useQuery({ id: exerciseId });
   const { data: history } = trpc.set.listByExercise.useQuery({ exerciseId });
+
+  // Fetched right away (gated only on isViewingAs, known synchronously —
+  // not on whether this turns out to be a standard exercise, which is only
+  // known once `exercise` itself resolves) so it lands in the same batched
+  // request as exercise/history instead of firing as a second, sequential
+  // round trip once canCompare becomes true. Only which friend's *history*
+  // loads is deferred until someone actually picks one below.
+  const { data: friends } = trpc.community.listFriends.useQuery(undefined, { enabled: !isViewingAs });
 
   // Comparing against a friend only makes sense on a standard exercise —
   // that's the only case where the exercise id is genuinely the same one
@@ -30,9 +33,6 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
   // another user's page: the friends involved would be the admin's own,
   // which has nothing to do with whose data is on screen.
   const canCompare = !isViewingAs && exercise?.userId === null;
-  const { data: friends, isLoading: isLoadingFriends } = trpc.community.listFriends.useQuery(undefined, {
-    enabled: canCompare && showCompareOptions,
-  });
   const compareFriend = friends?.find((f) => f.userId === compareFriendId) ?? null;
   const { data: comparisonHistory } = trpc.community.friendExerciseHistory.useQuery(
     { userId: compareFriendId ?? "", exerciseId },
@@ -47,22 +47,11 @@ export default function ExerciseStatsPage({ params }: { params: Promise<{ exerci
         {exercise?.description && <p className="text-sm text-muted px-1">{exercise.description}</p>}
       </div>
 
-      {canCompare && !showCompareOptions && (
-        <button
-          onClick={() => setShowCompareOptions(true)}
-          className="self-start text-sm rounded-lg px-3 py-2 min-h-11 border border-card-border"
-        >
-          {t("stats.compareWithFriend")}
-        </button>
-      )}
-
-      {canCompare && showCompareOptions && (
+      {canCompare && friends && friends.length > 0 && (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium px-1">{t("stats.compareWithFriend")}</p>
-          {isLoadingFriends && <p className="text-sm text-muted px-1">{t("common.loading")}</p>}
-          {friends?.length === 0 && <p className="text-sm text-muted px-1">{t("community.noFriendsYet")}</p>}
           <div className="flex gap-2 px-1 flex-wrap">
-            {friends?.map((friend) => (
+            {friends.map((friend) => (
               <button
                 key={friend.userId}
                 onClick={() => setCompareFriendId((current) => (current === friend.userId ? null : friend.userId))}
