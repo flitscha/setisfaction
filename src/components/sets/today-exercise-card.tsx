@@ -42,7 +42,7 @@ export function TodayExerciseCard({
                 onClick={() => onEditSet(set.id)}
                 className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10 min-h-11"
               >
-                {formatSetValue(set)}
+                {formatSetValue(set, t)}
                 {set.isPr && <Star size={12} className="fill-accent text-accent" />}
               </button>
             ) : (
@@ -50,7 +50,7 @@ export function TodayExerciseCard({
                 key={set.id}
                 className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm"
               >
-                {formatSetValue(set)}
+                {formatSetValue(set, t)}
                 {set.isPr && <Star size={12} className="fill-accent text-accent" />}
               </div>
             ),

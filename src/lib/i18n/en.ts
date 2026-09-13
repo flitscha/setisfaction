@@ -50,6 +50,9 @@ export const en = {
   "setForm.saveSet": "Save set",
   "setForm.subtractSecond": "Subtract one second",
   "setForm.addSecond": "Add one second",
+  "setForm.noTimeTitle": "No time recorded — log it anyway?",
+  "setForm.saveWithoutTime": "Save without time",
+  "setForm.noValueLogged": "Done",
 
   // Stopwatch.
   "stopwatch.start": "Start",

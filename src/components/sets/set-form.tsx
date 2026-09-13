@@ -46,6 +46,14 @@ export function SetForm({
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmingRestart, setConfirmingRestart] = useState(false);
+  // A blank time is a real, deliberate option (e.g. a dynamic/progression
+  // hold nobody wants to precisely measure) — but it's also exactly what an
+  // accidental tap of "Save set" instead of "Start" would produce, and the
+  // result is a near-invisible chip (see formatSetValue) with no way to
+  // tell the two apart after the fact. Confirming once here catches both:
+  // a genuine mis-tap gets a chance to be noticed, and a deliberate
+  // untimed set is still just one more tap away.
+  const [confirmNoTime, setConfirmNoTime] = useState(false);
 
   // Only guards freshly-entered, not-yet-saved values (create flow) — cancelling
   // an edit never loses anything, the previous values are still safely stored.
@@ -53,11 +61,20 @@ export function SetForm({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (showTime && timeSeconds === "" && !confirmNoTime) {
+      setConfirmNoTime(true);
+      return;
+    }
     onSubmit({
       reps: showReps && reps !== "" ? Number(reps) : undefined,
       timeSeconds: showTime && timeSeconds !== "" ? Number(timeSeconds) : undefined,
       weightKg: showWeight && weightKg !== "" ? Number(weightKg) : undefined,
     });
+  }
+
+  function handleTimeChange(value: string) {
+    setTimeSeconds(value);
+    if (confirmNoTime) setConfirmNoTime(false);
   }
 
   function handleCancelClick() {
@@ -95,12 +112,12 @@ export function SetForm({
             type="number"
             inputMode="numeric"
             value={timeSeconds}
-            onChange={(e) => setTimeSeconds(e.target.value)}
+            onChange={(e) => handleTimeChange(e.target.value)}
             className={inputClass}
           />
           <div className="flex items-center gap-2 flex-wrap">
             <Stopwatch
-              onStop={(seconds) => setTimeSeconds(String(seconds))}
+              onStop={(seconds) => handleTimeChange(String(seconds))}
               hasExistingValue={timeSeconds !== ""}
               onConfirmingRestartChange={setConfirmingRestart}
             />
@@ -142,7 +159,17 @@ export function SetForm({
         </label>
       )}
 
-      {confirmCancel ? (
+      {confirmNoTime ? (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted">{t("setForm.noTimeTitle")}</span>
+          <Button type="submit" disabled={isSubmitting} className="ml-auto">
+            {isSubmitting ? t("common.saving") : t("setForm.saveWithoutTime")}
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setConfirmNoTime(false)}>
+            {t("setForm.keepEditing")}
+          </Button>
+        </div>
+      ) : confirmCancel ? (
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted">{t("setForm.discardTitle")}</span>
           <Button type="button" variant="danger" onClick={onCancel} className="ml-auto">

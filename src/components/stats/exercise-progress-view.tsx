@@ -202,7 +202,7 @@ export function ExerciseProgressView({
                 <div className="flex flex-wrap gap-2">
                   {day.items.map((set) => (
                     <span key={set.id} className="rounded-md border border-card-border px-2 py-1 text-sm tabular-nums">
-                      {formatSetValue(set)}
+                      {formatSetValue(set, t)}
                     </span>
                   ))}
                 </div>

@@ -46,6 +46,9 @@ export const de: Record<keyof typeof en, string> = {
   "setForm.saveSet": "Satz speichern",
   "setForm.subtractSecond": "Eine Sekunde abziehen",
   "setForm.addSecond": "Eine Sekunde hinzufügen",
+  "setForm.noTimeTitle": "Keine Zeit erfasst — trotzdem speichern?",
+  "setForm.saveWithoutTime": "Ohne Zeit speichern",
+  "setForm.noValueLogged": "Erledigt",
 
   "stopwatch.start": "Start",
   "stopwatch.stop": "Stopp",
