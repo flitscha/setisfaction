@@ -49,12 +49,24 @@ export function describeError(error: unknown, t: Translate): string {
   const e = (error ?? {}) as ErrorLike;
   if (e.code && e.code in AUTH_ERROR_KEYS) return t(AUTH_ERROR_KEYS[e.code]);
   if (e.status === 429) return /email/i.test(e.message ?? "") ? t("auth.emailRateLimited") : t("auth.tooManyAttempts");
+  if (trpcErrorCode(error) === "UNAUTHORIZED") return t("auth.sessionExpired");
   if ((e.status !== undefined && e.status >= 500) || trpcErrorCode(error) === "INTERNAL_SERVER_ERROR") {
     return t("errors.server");
   }
 
   console.error(error);
   return t("errors.generic");
+}
+
+// A short technical identifier for an error (tRPC code, Supabase error code
+// or error class), shown in small print under a generic message so a
+// reported failure can actually be traced.
+export function errorDetail(error: unknown): string | null {
+  const e = (error ?? {}) as ErrorLike;
+  const parts = [trpcErrorCode(error) ?? e.code, e.name !== "Error" && e.name !== "TRPCClientError" ? e.name : undefined, e.message]
+    .filter((part): part is string => typeof part === "string" && part.length > 0)
+    .map((part) => part.slice(0, 120));
+  return parts.length > 0 ? Array.from(new Set(parts)).join(" · ") : null;
 }
 
 // tRPC's error code (e.g. "CONFLICT"), for call sites that react to a

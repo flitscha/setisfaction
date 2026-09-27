@@ -3,12 +3,13 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
-import { describeError } from "@/lib/supabase/errors";
+import { describeError, errorDetail } from "@/lib/supabase/errors";
+import { QUERY_CACHE_STORAGE_KEY } from "@/lib/trpc/provider";
 import { Button } from "@/components/ui/button";
 import { AuthShell, FormError } from "@/components/auth/auth-shell";
 import { PasswordInput } from "@/components/auth/password-input";
-import { ChooseUsernameForm, useFinishRegistration } from "@/components/auth/finish-registration";
 import { useT, type TranslationKey } from "@/lib/i18n/context";
 
 const MIN_PASSWORD_LENGTH = 6;
@@ -41,9 +42,9 @@ function AuthCallbackContent() {
   const t = useT();
   const searchParams = useSearchParams();
   const flow = searchParams.get("flow");
-  const finishRegistration = useFinishRegistration();
+  const queryClient = useQueryClient();
 
-  const [status, setStatus] = useState<"working" | "error" | "set-password" | "choose-username">("working");
+  const [status, setStatus] = useState<"working" | "error" | "set-password">("working");
   // What went wrong, translated at render time rather than when it happened:
   // the effect below runs on mount, before LocaleProvider has switched to
   // the stored/browser locale, so a string built then would be in English.
@@ -70,9 +71,18 @@ function AuthCallbackContent() {
         const hashErrorCode = hashParams.get("error_code");
         const code = searchParams.get("code");
 
-        // An expired or already-used link — the most common case being
-        // tapping the same confirmation link twice.
+        // An expired or already-used link — the most common case being the
+        // same confirmation link opened twice (a double tap, or a mail app
+        // opening it in two places). If the first opening already signed
+        // this browser in, there's nothing wrong: just carry on.
         if (hashErrorCode || hashParams.get("error")) {
+          if (flow === "signup") {
+            const { data } = await supabase.auth.getUser();
+            if (data.user?.email_confirmed_at) {
+              router.replace("/onboarding");
+              return;
+            }
+          }
           fail(flow === "signup" ? { key: "auth.signupLinkExpired" } : { error: { code: hashErrorCode ?? "otp_expired" } });
           return;
         }
@@ -92,18 +102,26 @@ function AuthCallbackContent() {
 
         if (cancelled) return;
 
+        // Possibly a different account than whatever this browser had
+        // cached (see TRPCProvider's persisted cache) — same cleanup as
+        // logging out.
+        queryClient.clear();
+        try {
+          localStorage.removeItem(QUERY_CACHE_STORAGE_KEY);
+        } catch {
+          // nothing persisted to clean up
+        }
+
         if (flow === "recovery") {
           setStatus("set-password");
           return;
         }
 
+        // Onboarding creates the profile (auth.ensureRegistration) before
+        // anything else — done there rather than here so a failure gets a
+        // retry button instead of a dead end, and so an account that never
+        // got that far is completed the same way later (RegistrationGuard).
         if (flow === "signup") {
-          const outcome = await finishRegistration();
-          if (cancelled) return;
-          if (outcome === "username-taken") {
-            setStatus("choose-username");
-            return;
-          }
           router.push("/onboarding");
           router.refresh();
           return;
@@ -149,19 +167,6 @@ function AuthCallbackContent() {
     }
   }
 
-  if (status === "choose-username") {
-    return (
-      <AuthShell title={t("auth.chooseNewUsernameTitle")} subtitle={t("auth.usernameTakenMeanwhile")}>
-        <ChooseUsernameForm
-          onDone={() => {
-            router.push("/onboarding");
-            router.refresh();
-          }}
-        />
-      </AuthShell>
-    );
-  }
-
   return (
     <AuthShell title={status === "set-password" ? t("auth.resetPasswordTitle") : "Setisfaction"}>
       {status === "working" && <p className="text-sm text-muted text-center">{t("auth.finishingUp")}</p>}
@@ -171,6 +176,9 @@ function AuthCallbackContent() {
           <p role="alert" className="text-red-600 text-sm text-center">
             {failure && ("key" in failure ? t(failure.key) : describeError(failure.error, t))}
           </p>
+          {failure && "error" in failure && errorDetail(failure.error) && (
+            <p className="text-xs text-muted text-center">{errorDetail(failure.error)}</p>
+          )}
           <Button onClick={() => router.push("/login")}>{t("auth.backToLogin")}</Button>
           {flow === "signup" && (
             <Link href="/register" className="text-sm text-muted text-center">

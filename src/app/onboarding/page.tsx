@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { trpc } from "@/lib/trpc/client";
-import { describeError } from "@/lib/supabase/errors";
+import { describeError, errorDetail } from "@/lib/supabase/errors";
 import { AuthShell, FormError } from "@/components/auth/auth-shell";
+import { ChooseUsernameForm, useFinishRegistration } from "@/components/auth/finish-registration";
 import { ExerciseCategoryForm } from "@/components/settings/exercise-category-form";
 import { LanguageForm } from "@/components/settings/language-form";
 import { InstallAppHint, isRunningInstalled } from "@/components/install/install-app-hint";
@@ -25,10 +26,42 @@ const subscribeNever = () => () => {};
 // signup form was filled in. Not enforced by the proxy the way
 // /verify-email is — skipping it just keeps the defaults (browser language,
 // calisthenics only), both changeable any time in Settings.
+//
+// Also where an unfinished registration gets completed (RegistrationGuard
+// sends such accounts here): the profile has to exist before the training
+// choice can be saved on it.
 export default function OnboardingPage() {
   const router = useRouter();
   const t = useT();
-  const { data: me } = trpc.auth.me.useQuery();
+  const utils = trpc.useUtils();
+  const { data: me, isFetchedAfterMount } = trpc.auth.me.useQuery();
+  const finishRegistration = useFinishRegistration();
+  const [registration, setRegistration] = useState<
+    { state: "idle" | "finishing" | "choose-username" } | { state: "error"; error: unknown }
+  >({ state: "idle" });
+  const startedRef = useRef(false);
+
+  async function completeRegistration() {
+    setRegistration({ state: "finishing" });
+    try {
+      const outcome = await finishRegistration();
+      if (outcome === "username-taken") {
+        setRegistration({ state: "choose-username" });
+        return;
+      }
+      await utils.auth.me.invalidate();
+      setRegistration({ state: "idle" });
+    } catch (err) {
+      setRegistration({ state: "error", error: err });
+    }
+  }
+
+  useEffect(() => {
+    if (startedRef.current || !isFetchedAfterMount || !me?.needsRegistration) return;
+    startedRef.current = true;
+    completeRegistration();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFetchedAfterMount, me?.needsRegistration]);
   const { data: categories, isLoading, error: loadError } = trpc.settings.exerciseCategories.useQuery();
   const [step, setStep] = useState<Step>("language");
   // The install step is pointless when already running as the installed app.
@@ -56,6 +89,38 @@ export default function OnboardingPage() {
     training: t("onboarding.hint"),
     install: t("onboarding.installHint"),
   };
+
+  if (registration.state === "choose-username") {
+    return (
+      <AuthShell title={t("auth.chooseNewUsernameTitle")} subtitle={t("auth.usernameTakenMeanwhile")}>
+        <ChooseUsernameForm
+          onDone={async () => {
+            await utils.auth.me.invalidate();
+            setRegistration({ state: "idle" });
+          }}
+        />
+      </AuthShell>
+    );
+  }
+
+  if (registration.state === "error") {
+    const detail = errorDetail(registration.error);
+    return (
+      <AuthShell title="Setisfaction">
+        <FormError>{describeError(registration.error, t)}</FormError>
+        {detail && <p className="text-xs text-muted">{detail}</p>}
+        <Button onClick={completeRegistration}>{t("auth.tryAgain")}</Button>
+      </AuthShell>
+    );
+  }
+
+  if (registration.state === "finishing" || me?.needsRegistration) {
+    return (
+      <AuthShell title="Setisfaction">
+        <p className="text-sm text-muted text-center">{t("auth.finishingUp")}</p>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell title={titles[step]} subtitle={subtitles[step]} showLanguageToggle={false}>

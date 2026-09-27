@@ -32,9 +32,18 @@ type AuthUserRow = { id: string; email: string };
 
 export const authRouter = router({
   me: protectedProcedure.query(async ({ ctx }) => {
-    const [row] = (await db.execute(sql`select email from auth.users where id = ${ctx.userId}`)) as unknown as { email: string }[];
+    const [[row], [profile]] = await Promise.all([
+      db.execute(sql`select email from auth.users where id = ${ctx.userId}`) as unknown as Promise<{ email: string }[]>,
+      db.select({ username: profiles.username }).from(profiles).where(eq(profiles.userId, ctx.userId)),
+    ]);
     const usernameByUserId = await resolveUsernames([{ id: ctx.userId, email: row.email }]);
-    return { username: usernameByUserId.get(ctx.userId) ?? "?" };
+    return {
+      username: usernameByUserId.get(ctx.userId) ?? "?",
+      // Signed in, but auth.ensureRegistration never completed — see
+      // RegistrationGuard, which sends such an account to /onboarding.
+      // Legacy synthetic-email accounts are exempt; /verify-email handles them.
+      needsRegistration: !profile?.username && !isSyntheticEmail(row.email),
+    };
   }),
 
   // The login form collects a username (or an email, which the client
@@ -113,13 +122,17 @@ export const authRouter = router({
         throw new TRPCError({ code: "CONFLICT", message: USERNAME_TAKEN_MESSAGE });
       }
 
+      // Grouping first, username last: profiles.username is what marks the
+      // registration as done (see the early return above), so a failure in
+      // between leaves it retryable instead of permanently half-finished.
+      // applyStandardGrouping is idempotent, so a retry doesn't duplicate.
+      await applyStandardGrouping(ctx.userId);
+
       if (existingProfile) {
         await db.update(profiles).set({ username }).where(eq(profiles.userId, ctx.userId));
       } else {
         await db.insert(profiles).values({ userId: ctx.userId, username });
       }
-
-      await applyStandardGrouping(ctx.userId);
       return { created: true };
     }),
 

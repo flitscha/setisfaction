@@ -20,11 +20,11 @@ export const adminRouter = router({
     // None of these three depend on each other — only resolveUsernames
     // below needs authUsers, so run all three together first.
     const [authUsersRaw, profileRows, setCounts] = await Promise.all([
-      db.execute(sql`select id, email, created_at from auth.users order by created_at`),
+      db.execute(sql`select id, email, created_at, email_confirmed_at is not null as confirmed from auth.users order by created_at`),
       db.select().from(profiles),
       db.select({ userId: sets.userId, setCount: count() }).from(sets).groupBy(sets.userId),
     ]);
-    const authUsers = authUsersRaw as unknown as AuthUserRow[];
+    const authUsers = authUsersRaw as unknown as (AuthUserRow & { confirmed: boolean })[];
 
     const isAdminByUserId = new Map(profileRows.map((p) => [p.userId, p.isAdmin]));
     const setCountByUserId = new Map(setCounts.map((row) => [row.userId, row.setCount]));
@@ -37,6 +37,9 @@ export const adminRouter = router({
       createdAt: new Date(row.created_at),
       isAdmin: isAdminByUserId.get(row.id) ?? false,
       totalSets: setCountByUserId.get(row.id) ?? 0,
+      // A signup whose email was never confirmed — can't log in, and hidden
+      // from the community directory; listed here so it can be cleaned up.
+      confirmed: row.confirmed,
     }));
   }),
 

@@ -8,12 +8,12 @@ import { emailToUsername } from "@/lib/username";
 //  1. profiles.username — the source of truth since real-email registration
 //     (see CLAUDE.md's Auth section).
 //  2. Supabase's own user_metadata.username — set at signUp time, before
-//     any confirmation, so it survives even a registration that never
-//     finished (e.g. the browser closed between clicking the confirmation
-//     link and auth.ensureRegistration actually running, which is what
-//     left profiles.username empty). Found this way, it's also written
-//     back into profiles.username in the background so future lookups
-//     don't need this fallback.
+//     any confirmation, so it covers a registration that never finished
+//     (the browser closed between clicking the confirmation link and
+//     auth.ensureRegistration running). Display only: creating the profile
+//     is left to ensureRegistration on that account's next login, which
+//     also applies the default grouping and shows onboarding — writing the
+//     username here would mark the registration as done without either.
 //  3. Deriving one from the row's email — only correct for an account
 //     that hasn't been through /verify-email yet, since emailToUsername
 //     only knows how to strip the old @setisfaction.local suffix. Anything
@@ -39,15 +39,6 @@ export async function resolveUsernames(rows: { id: string; email: string }[]): P
     for (const row of metaRows) {
       if (!row.username) continue;
       usernameByUserId.set(row.id, row.username);
-
-      // Best-effort self-heal, not awaited — this request already has what
-      // it needs from the map above; onConflictDoNothing covers the rare
-      // race of two requests healing the same row, or the name having been
-      // taken by someone else in the meantime.
-      db.insert(profiles)
-        .values({ userId: row.id, username: row.username })
-        .onConflictDoNothing()
-        .catch(() => {});
     }
   }
 

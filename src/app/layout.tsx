@@ -6,6 +6,7 @@ import { LocaleProvider } from "@/lib/i18n/context";
 import { TopBar } from "@/components/layout/top-bar";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { FriendProfileModal } from "@/components/community/friend-profile-modal";
+import { RegistrationGuard } from "@/components/auth/registration-guard";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <div className="flex-1 flex flex-col pb-20">{children}</div>
             <BottomNav />
             <FriendProfileModal />
+            <RegistrationGuard />
           </TRPCProvider>
         </LocaleProvider>
       </body>

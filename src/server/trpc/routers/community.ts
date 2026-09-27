@@ -44,7 +44,7 @@ export const communityRouter = router({
   // and know what action is available — no training details until friends.
   listUsers: protectedProcedure.query(async ({ ctx }) => {
     const authUsers = (await db.execute(
-      sql`select id, email, created_at from auth.users where id != ${ctx.userId} order by created_at`,
+      sql`select id, email, created_at from auth.users where id != ${ctx.userId} and email_confirmed_at is not null order by created_at`,
     )) as unknown as AuthUserRow[];
 
     const [outgoing, incoming, friendRows] = await Promise.all([

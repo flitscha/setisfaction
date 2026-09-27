@@ -40,6 +40,7 @@ export default function AdminPage() {
               <p className="font-medium flex items-center gap-2">
                 {user.username}
                 {user.isAdmin && <span className="text-xs text-accent">{t("admin.admin")}</span>}
+                {!user.confirmed && <span className="text-xs text-amber-600">{t("admin.unconfirmed")}</span>}
               </p>
               <p className="text-xs text-muted">
                 {t("admin.joined", { date: user.createdAt.toLocaleDateString(dateLocale) })}
