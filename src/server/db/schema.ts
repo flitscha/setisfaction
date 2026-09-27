@@ -25,7 +25,7 @@ import { sql } from "drizzle-orm";
 // by a one-off script, not a migration, since it needs to read each
 // account's current synthetic email) but every account ends up with one —
 // filled in by that backfill for pre-existing accounts, or by
-// auth.completeRegistration for new ones.
+// auth.ensureRegistration for new ones.
 export const profiles = pgTable(
   "profiles",
   {
@@ -33,7 +33,7 @@ export const profiles = pgTable(
     username: text("username"),
     isAdmin: boolean("is_admin").notNull().default(false),
     // Which parts of the shared exercise catalog this user sees by default —
-    // chosen once during onboarding (src/app/onboarding/exercise-categories),
+    // chosen once during onboarding (src/app/onboarding),
     // changeable any time in Settings. Purely a visibility filter over the
     // standard catalog (see exercise.ts's getCategoryHiddenIds): never
     // affects a user's own personal exercises, and never hides a standard

@@ -4,102 +4,126 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { describeError } from "@/lib/supabase/errors";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
-import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { AuthShell, FormError, authInputClass } from "@/components/auth/auth-shell";
+import { PasswordInput } from "@/components/auth/password-input";
+import { ChooseUsernameForm, useFinishRegistration } from "@/components/auth/finish-registration";
+import { InstallAppHint } from "@/components/install/install-app-hint";
 import { useT } from "@/lib/i18n/context";
-
-const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
 export default function LoginPage() {
   const router = useRouter();
   const utils = trpc.useUtils();
   const t = useT();
-  const [username, setUsername] = useState("");
+  const finishRegistration = useFinishRegistration();
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [needsNewUsername, setNeedsNewUsername] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setShowForgotPassword(false);
     setIsSubmitting(true);
 
-    const { email } = await utils.auth.resolveLoginEmail.fetch({ username });
+    try {
+      // An email is used as-is; anything else is a username to look up.
+      let email = identifier.trim();
+      if (!email.includes("@")) {
+        const resolved = await utils.auth.resolveLoginEmail.fetch({ username: email });
+        if (resolved.pendingConfirmation) {
+          setError(t("auth.emailNotConfirmed"));
+          return;
+        }
+        if (!resolved.email) {
+          setError(t("auth.usernameOrPasswordWrong"));
+          return;
+        }
+        email = resolved.email;
+      }
 
-    if (!email) {
+      const supabase = createClient();
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        setError(describeError(signInError, t));
+        return;
+      }
+
+      const outcome = await finishRegistration();
+      if (outcome === "username-taken") {
+        setNeedsNewUsername(true);
+        return;
+      }
+      router.push(outcome === "created" ? "/onboarding" : "/");
+      router.refresh();
+    } catch (err) {
+      setError(describeError(err, t));
+    } finally {
       setIsSubmitting(false);
-      setError(t("auth.usernameOrPasswordWrong"));
-      setShowForgotPassword(true);
-      return;
     }
+  }
 
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-
-    setIsSubmitting(false);
-
-    if (signInError) {
-      setError(t("auth.usernameOrPasswordWrong"));
-      setShowForgotPassword(true);
-      return;
-    }
-
-    router.push("/");
-    router.refresh();
+  if (needsNewUsername) {
+    return (
+      <AuthShell title={t("auth.chooseNewUsernameTitle")} subtitle={t("auth.usernameTakenMeanwhile")}>
+        <ChooseUsernameForm
+          onDone={() => {
+            router.push("/onboarding");
+            router.refresh();
+          }}
+        />
+      </AuthShell>
+    );
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
-      <form onSubmit={handleSubmit} className="w-full max-w-xs flex flex-col gap-4">
-        <div className="flex flex-col items-center gap-2 mb-2">
-          <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
-            <PullUpIcon size={24} />
-          </div>
-          <h1 className="text-xl font-semibold">Setisfaction</h1>
-        </div>
-
+    <AuthShell title="Setisfaction" subtitle={t("auth.tagline")}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <input
           type="text"
-          placeholder={t("auth.username")}
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          placeholder={t("auth.usernameOrEmail")}
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           autoComplete="username"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           required
-          className={inputClass}
+          className={authInputClass}
         />
 
-        <input
-          type="password"
-          placeholder={t("auth.password")}
+        <PasswordInput
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={setPassword}
+          placeholder={t("auth.password")}
           autoComplete="current-password"
-          required
-          className={inputClass}
         />
 
-        {error && (
-          <div className="flex flex-col gap-1">
-            <p className="text-red-600 text-sm">{error}</p>
-            {showForgotPassword && (
-              <Link href="/forgot-password" className="text-sm text-muted underline w-fit">
-                {t("auth.forgotPassword")}
-              </Link>
-            )}
-          </div>
-        )}
+        {error && <FormError>{error}</FormError>}
 
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? t("auth.loggingIn") : t("auth.logIn")}
         </Button>
 
-        <Link href="/register" className="text-sm text-muted text-center">
-          {t("auth.newHereCreateAccount")}
+        <Link href="/forgot-password" className="text-sm text-muted text-center -mt-1">
+          {t("auth.forgotPassword")}
         </Link>
       </form>
-    </main>
+
+      <div className="flex flex-col gap-2 border-t border-card-border pt-4">
+        <p className="text-sm text-muted text-center">{t("auth.newHere")}</p>
+        <Link
+          href="/register"
+          className="rounded-lg px-4 py-2.5 min-h-11 text-sm font-medium text-center border border-card-border hover:bg-black/5 dark:hover:bg-white/10"
+        >
+          {t("auth.createAccount")}
+        </Link>
+      </div>
+
+      <InstallAppHint collapsible />
+    </AuthShell>
   );
 }

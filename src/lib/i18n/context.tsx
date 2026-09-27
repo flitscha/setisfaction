@@ -24,17 +24,23 @@ const LocaleContext = createContext<LocaleContextValue | null>(null);
 // Starts at "en" so server and client agree on the first paint, then
 // corrects to whatever's in localStorage right after mount (same reasoning
 // as CollapsibleSection's own "restore after mount" comment) — a brief
-// flash of English on first load is the tradeoff.
+// flash of English on first load is the tradeoff. With nothing stored yet
+// (a first visit, or an installed iOS PWA, which doesn't share Safari's
+// storage), the browser's own language decides until one is picked.
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("en");
 
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      if (stored === "en" || stored === "de") setLocaleState(stored);
+      if (stored === "en" || stored === "de") {
+        setLocaleState(stored);
+        return;
+      }
     } catch {
-      // localStorage can throw (private browsing, blocked) — default stays.
+      // localStorage can throw (private browsing, blocked) — fall through.
     }
+    if (navigator.language.toLowerCase().startsWith("de")) setLocaleState("de");
   }, []);
 
   useEffect(() => {

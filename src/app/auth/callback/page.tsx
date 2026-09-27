@@ -2,13 +2,16 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { trpc } from "@/lib/trpc/client";
+import { describeError } from "@/lib/supabase/errors";
 import { Button } from "@/components/ui/button";
-import { PullUpIcon } from "@/components/icons/pull-up-icon";
-import { useT } from "@/lib/i18n/context";
+import { AuthShell, FormError } from "@/components/auth/auth-shell";
+import { PasswordInput } from "@/components/auth/password-input";
+import { ChooseUsernameForm, useFinishRegistration } from "@/components/auth/finish-registration";
+import { useT, type TranslationKey } from "@/lib/i18n/context";
 
-const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
+const MIN_PASSWORD_LENGTH = 6;
 
 // Where every confirmation email's link points (register/verify-email/
 // forgot-password all set emailRedirectTo/redirectTo to this page with a
@@ -38,96 +41,78 @@ function AuthCallbackContent() {
   const t = useT();
   const searchParams = useSearchParams();
   const flow = searchParams.get("flow");
-  const username = searchParams.get("username");
-  const completeRegistration = trpc.auth.completeRegistration.useMutation();
+  const finishRegistration = useFinishRegistration();
 
-  const [status, setStatus] = useState<"working" | "error" | "set-password">("working");
+  const [status, setStatus] = useState<"working" | "error" | "set-password" | "choose-username">("working");
+  // What went wrong, translated at render time rather than when it happened:
+  // the effect below runs on mount, before LocaleProvider has switched to
+  // the stored/browser locale, so a string built then would be in English.
+  const [failure, setFailure] = useState<{ key: TranslationKey } | { error: unknown } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
-    async function run() {
-      const supabase = createClient();
-      const hashParams = new URLSearchParams(window.location.hash.slice(1));
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
-      const hashError = hashParams.get("error_description");
-      const code = searchParams.get("code");
-
-      if (hashError) {
-        if (!cancelled) {
-          setStatus("error");
-          setError(hashError.replace(/\+/g, " "));
-        }
-        return;
-      }
-
-      if (accessToken && refreshToken) {
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (sessionError) {
-          if (!cancelled) {
-            setStatus("error");
-            setError(sessionError.message);
-          }
-          return;
-        }
-      } else if (code) {
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-        if (exchangeError) {
-          if (!cancelled) {
-            setStatus("error");
-            setError(exchangeError.message);
-          }
-          return;
-        }
-      } else {
-        if (!cancelled) {
-          setStatus("error");
-          setError(t("auth.linkInvalidOrExpired"));
-        }
-        return;
-      }
-
+    function fail(reason: { key: TranslationKey } | { error: unknown }) {
       if (cancelled) return;
+      setStatus("error");
+      setFailure(reason);
+    }
 
-      if (flow === "recovery") {
-        setStatus("set-password");
-        return;
-      }
+    async function run() {
+      try {
+        const supabase = createClient();
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const hashErrorCode = hashParams.get("error_code");
+        const code = searchParams.get("code");
 
-      if (flow === "signup") {
-        if (!username) {
-          setStatus("error");
-          setError(t("auth.missingUsername"));
+        // An expired or already-used link — the most common case being
+        // tapping the same confirmation link twice.
+        if (hashErrorCode || hashParams.get("error")) {
+          fail(flow === "signup" ? { key: "auth.signupLinkExpired" } : { error: { code: hashErrorCode ?? "otp_expired" } });
           return;
         }
-        try {
-          await completeRegistration.mutateAsync({ username });
-        } catch (err) {
-          if (!cancelled) {
-            setStatus("error");
-            setError(err instanceof Error ? err.message : t("auth.somethingWentWrong"));
+
+        if (accessToken && refreshToken) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessionError) return fail({ error: sessionError });
+        } else if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) return fail({ error: exchangeError });
+        } else {
+          return fail({ key: flow === "signup" ? "auth.signupLinkExpired" : "auth.linkInvalidOrExpired" });
+        }
+
+        if (cancelled) return;
+
+        if (flow === "recovery") {
+          setStatus("set-password");
+          return;
+        }
+
+        if (flow === "signup") {
+          const outcome = await finishRegistration();
+          if (cancelled) return;
+          if (outcome === "username-taken") {
+            setStatus("choose-username");
+            return;
           }
+          router.push("/onboarding");
+          router.refresh();
           return;
         }
 
-        if (!cancelled) {
-          router.push("/onboarding/exercise-categories");
-          router.refresh();
-        }
-        return;
-      }
-
-      if (!cancelled) {
         router.push("/today");
         router.refresh();
+      } catch (err) {
+        fail({ error: err });
       }
     }
 
@@ -142,79 +127,87 @@ function AuthCallbackContent() {
     e.preventDefault();
     setError(null);
 
-    if (password !== confirmPassword) {
-      setError(t("auth.passwordsDontMatch"));
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setError(t("auth.passwordTooWeak"));
       return;
     }
 
     setIsSubmitting(true);
-    const supabase = createClient();
-    const { error: updateError } = await supabase.auth.updateUser({ password });
-    setIsSubmitting(false);
-
-    if (updateError) {
-      setError(updateError.message);
-      return;
+    try {
+      const supabase = createClient();
+      const { error: updateError } = await supabase.auth.updateUser({ password });
+      if (updateError) {
+        setError(describeError(updateError, t));
+        return;
+      }
+      router.push("/today");
+      router.refresh();
+    } catch (err) {
+      setError(describeError(err, t));
+    } finally {
+      setIsSubmitting(false);
     }
+  }
 
-    router.push("/today");
-    router.refresh();
+  if (status === "choose-username") {
+    return (
+      <AuthShell title={t("auth.chooseNewUsernameTitle")} subtitle={t("auth.usernameTakenMeanwhile")}>
+        <ChooseUsernameForm
+          onDone={() => {
+            router.push("/onboarding");
+            router.refresh();
+          }}
+        />
+      </AuthShell>
+    );
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
-      <div className="w-full max-w-xs flex flex-col gap-4">
-        <div className="flex flex-col items-center gap-2 mb-2">
-          <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
-            <PullUpIcon size={24} />
-          </div>
-          <h1 className="text-xl font-semibold">Setisfaction</h1>
-        </div>
+    <AuthShell title={status === "set-password" ? t("auth.resetPasswordTitle") : "Setisfaction"}>
+      {status === "working" && <p className="text-sm text-muted text-center">{t("auth.finishingUp")}</p>}
 
-        {status === "working" && <p className="text-sm text-muted text-center">{t("auth.finishingUp")}</p>}
+      {status === "error" && (
+        <>
+          <p role="alert" className="text-red-600 text-sm text-center">
+            {failure && ("key" in failure ? t(failure.key) : describeError(failure.error, t))}
+          </p>
+          <Button onClick={() => router.push("/login")}>{t("auth.backToLogin")}</Button>
+          {flow === "signup" && (
+            <Link href="/register" className="text-sm text-muted text-center">
+              {t("auth.registerAgain")}
+            </Link>
+          )}
+          {flow === "recovery" && (
+            <Link href="/forgot-password" className="text-sm text-muted text-center">
+              {t("auth.requestNewLink")}
+            </Link>
+          )}
+        </>
+      )}
 
-        {status === "error" && (
-          <>
-            <p className="text-red-600 text-sm text-center">{error}</p>
-            <Button onClick={() => router.push("/login")}>{t("auth.backToLogin")}</Button>
-          </>
-        )}
+      {status === "set-password" && (
+        <form onSubmit={handleSetPassword} className="flex flex-col gap-4">
+          <p className="text-sm text-muted text-center">{t("auth.chooseNewPassword")}</p>
 
-        {status === "set-password" && (
-          <form onSubmit={handleSetPassword} className="flex flex-col gap-4">
-            <p className="text-sm text-muted text-center">{t("auth.chooseNewPassword")}</p>
-
-            <input
-              type="password"
-              placeholder={t("auth.newPassword")}
+          <div className="flex flex-col gap-1">
+            <PasswordInput
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
+              placeholder={t("auth.newPassword")}
               autoComplete="new-password"
               autoFocus
-              required
-              minLength={6}
-              className={inputClass}
+              minLength={MIN_PASSWORD_LENGTH}
             />
+            <p className="text-xs text-muted px-1">{t("auth.passwordHint", { min: MIN_PASSWORD_LENGTH })}</p>
+          </div>
 
-            <input
-              type="password"
-              placeholder={t("auth.confirmNewPassword")}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              autoComplete="new-password"
-              required
-              minLength={6}
-              className={inputClass}
-            />
+          {error && <FormError>{error}</FormError>}
 
-            {error && <p className="text-red-600 text-sm">{error}</p>}
-
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? t("common.saving") : t("auth.setPassword")}
-            </Button>
-          </form>
-        )}
-      </div>
-    </main>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? t("common.saving") : t("auth.setPassword")}
+          </Button>
+        </form>
+      )}
+    </AuthShell>
   );
 }

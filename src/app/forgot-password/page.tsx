@@ -3,12 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { describeAuthEmailError } from "@/lib/supabase/errors";
+import { describeError, isNetworkError } from "@/lib/supabase/errors";
 import { Button } from "@/components/ui/button";
-import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { AuthShell, FormError, authInputClass } from "@/components/auth/auth-shell";
 import { useT } from "@/lib/i18n/context";
-
-const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
 // The emailed link lands on /auth/callback, which recognizes Supabase's
 // PASSWORD_RECOVERY event and shows the "set a new password" form itself —
@@ -25,62 +23,65 @@ export default function ForgotPasswordPage() {
     setError(null);
     setIsSubmitting(true);
 
-    const supabase = createClient();
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/callback?flow=recovery`,
-    });
-    setIsSubmitting(false);
+    try {
+      const supabase = createClient();
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/callback?flow=recovery`,
+      });
 
-    // Supabase deliberately doesn't reveal whether the email is on file —
-    // any error other than a genuine rate limit is treated as success so
-    // that stays true here too; the rate limit itself isn't an enumeration
-    // risk, so it's fine (and more honest) to actually show that one.
-    if (resetError?.code === "over_email_send_rate_limit") {
-      setError(describeAuthEmailError(resetError, t));
-      return;
+      // Supabase deliberately doesn't reveal whether the email is on file —
+      // any error other than a rate limit or a connection problem is treated
+      // as success so that stays true here too; neither of those is an
+      // enumeration risk, so it's fine (and more honest) to show them.
+      if (resetError && (resetError.status === 429 || isNetworkError(resetError))) {
+        setError(describeError(resetError, t));
+        return;
+      }
+
+      setStep("sent");
+    } catch (err) {
+      setError(describeError(err, t));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setStep("sent");
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
-      <div className="w-full max-w-xs flex flex-col gap-4">
-        <div className="flex flex-col items-center gap-2 mb-2">
-          <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
-            <PullUpIcon size={24} />
-          </div>
-          <h1 className="text-xl font-semibold">{t("auth.resetPasswordTitle")}</h1>
-        </div>
+    <AuthShell title={t("auth.resetPasswordTitle")}>
+      {step === "email" ? (
+        <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
+          <p className="text-sm text-muted text-center">{t("auth.resetPasswordHint")}</p>
 
-        {step === "email" ? (
-          <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
-            <p className="text-sm text-muted text-center">{t("auth.resetPasswordHint")}</p>
+          <input
+            type="email"
+            placeholder={t("auth.email")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            autoCapitalize="none"
+            required
+            className={authInputClass}
+          />
 
-            <input
-              type="email"
-              placeholder={t("auth.email")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              required
-              className={inputClass}
-            />
+          {error && <FormError>{error}</FormError>}
 
-            {error && <p className="text-red-600 text-sm">{error}</p>}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? t("auth.sending") : t("auth.sendResetLink")}
+          </Button>
 
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? t("auth.sending") : t("auth.sendResetLink")}
-            </Button>
-
-            <Link href="/login" className="text-sm text-muted text-center">
-              {t("auth.backToLogin")}
-            </Link>
-          </form>
-        ) : (
+          <Link href="/login" className="text-sm text-muted text-center">
+            {t("auth.backToLogin")}
+          </Link>
+        </form>
+      ) : (
+        <>
           <p className="text-sm text-muted text-center">{t("auth.resetLinkSentIfExists", { email })}</p>
-        )}
-      </div>
-    </main>
+          <p className="text-sm text-muted text-center">{t("auth.checkSpamHint")}</p>
+          <Link href="/login" className="text-sm text-muted text-center underline">
+            {t("auth.backToLogin")}
+          </Link>
+        </>
+      )}
+    </AuthShell>
   );
 }

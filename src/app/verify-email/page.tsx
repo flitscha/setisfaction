@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { describeAuthEmailError } from "@/lib/supabase/errors";
+import { describeError } from "@/lib/supabase/errors";
 import { trpc } from "@/lib/trpc/client";
 import { Button } from "@/components/ui/button";
 import { LogoutButton } from "@/components/auth/logout-button";
-import { PullUpIcon } from "@/components/icons/pull-up-icon";
+import { AuthShell, FormError, authInputClass } from "@/components/auth/auth-shell";
 import { useT } from "@/lib/i18n/context";
-
-const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
 
 // Forced on accounts created before real-email registration existed (see
 // proxy.ts) — a one-time detour to add a working email, so password
@@ -30,60 +28,54 @@ export default function VerifyEmailPage() {
     setError(null);
     setIsSubmitting(true);
 
-    const supabase = createClient();
-    const { error: updateError } = await supabase.auth.updateUser(
-      { email },
-      { emailRedirectTo: `${window.location.origin}/auth/callback?flow=email_change` },
-    );
-
-    setIsSubmitting(false);
-
-    if (updateError) {
-      setError(describeAuthEmailError(updateError, t));
-      return;
+    try {
+      const supabase = createClient();
+      const { error: updateError } = await supabase.auth.updateUser(
+        { email: email.trim() },
+        { emailRedirectTo: `${window.location.origin}/auth/callback?flow=email_change` },
+      );
+      if (updateError) {
+        setError(describeError(updateError, t));
+        return;
+      }
+      setStep("sent");
+    } catch (err) {
+      setError(describeError(err, t));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setStep("sent");
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
-      <div className="w-full max-w-xs flex flex-col gap-4">
-        <div className="flex flex-col items-center gap-2 mb-2">
-          <div className="rounded-full bg-accent text-accent-foreground w-12 h-12 flex items-center justify-center">
-            <PullUpIcon size={24} />
-          </div>
-          <h1 className="text-xl font-semibold">{t("auth.addYourEmailTitle")}</h1>
-        </div>
+    <AuthShell title={t("auth.addYourEmailTitle")}>
+      <p className="text-sm text-muted text-center">
+        {me ? t("auth.addEmailHintWithName", { username: me.username }) : t("auth.addEmailHintNoName")}
+      </p>
 
-        <p className="text-sm text-muted text-center">
-          {me ? t("auth.addEmailHintWithName", { username: me.username }) : t("auth.addEmailHintNoName")}
-        </p>
+      {step === "email" ? (
+        <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
+          <input
+            type="email"
+            placeholder={t("auth.email")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            autoCapitalize="none"
+            required
+            className={authInputClass}
+          />
 
-        {step === "email" ? (
-          <form onSubmit={handleEmailSubmit} className="flex flex-col gap-4">
-            <input
-              type="email"
-              placeholder={t("auth.email")}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              required
-              className={inputClass}
-            />
+          {error && <FormError>{error}</FormError>}
 
-            {error && <p className="text-red-600 text-sm">{error}</p>}
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? t("auth.sending") : t("auth.sendConfirmationLink")}
+          </Button>
+        </form>
+      ) : (
+        <p className="text-sm text-muted text-center">{t("auth.confirmationSentGeneric", { email })}</p>
+      )}
 
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? t("auth.sending") : t("auth.sendConfirmationLink")}
-            </Button>
-          </form>
-        ) : (
-          <p className="text-sm text-muted text-center">{t("auth.confirmationSentGeneric", { email })}</p>
-        )}
-
-        <LogoutButton className="text-sm text-muted text-center mx-auto">{t("topBar.logOutInstead")}</LogoutButton>
-      </div>
-    </main>
+      <LogoutButton className="text-sm text-muted text-center mx-auto">{t("topBar.logOutInstead")}</LogoutButton>
+    </AuthShell>
   );
 }

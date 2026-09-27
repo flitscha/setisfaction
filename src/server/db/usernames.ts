@@ -10,7 +10,7 @@ import { emailToUsername } from "@/lib/username";
 //  2. Supabase's own user_metadata.username — set at signUp time, before
 //     any confirmation, so it survives even a registration that never
 //     finished (e.g. the browser closed between clicking the confirmation
-//     link and auth.completeRegistration actually running, which is what
+//     link and auth.ensureRegistration actually running, which is what
 //     left profiles.username empty). Found this way, it's also written
 //     back into profiles.username in the background so future lookups
 //     don't need this fallback.
