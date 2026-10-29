@@ -72,6 +72,8 @@ export default function TodayPage() {
           timeSeconds: input.timeSeconds ?? null,
           weightKg: input.weightKg ?? null,
           isPr: false,
+          prFields: [],
+          labelPrFields: false,
         },
       ]);
       return { previous };

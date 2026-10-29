@@ -38,6 +38,10 @@ export const de: Record<keyof typeof en, string> = {
   "today.newSet": "Neuer Satz",
   "today.logExercise": "Übung erfassen",
   "today.addSet": "+ Satz",
+  "today.prReps": "Wdh.",
+  "today.prTime": "Zeit",
+  "today.prWeight": "Gewicht",
+  "today.prVolume": "Volumen",
 
   "setForm.discardTitle": "Diesen Satz verwerfen?",
   "setForm.discard": "Verwerfen",

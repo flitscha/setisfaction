@@ -210,13 +210,17 @@ export const setRouter = router({
 
       return rows.map((row) => {
         const best = runningBest.get(row.exerciseId) ?? EMPTY_BEST;
+        const candidates = effectivePrFields(row, storedPrFields.get(row.exerciseId));
         const prFields = getPrFields(
           { reps: row.reps ?? undefined, timeSeconds: row.timeSeconds ?? undefined, weightKg: row.weightKg ?? undefined },
           best,
-          effectivePrFields(row, storedPrFields.get(row.exerciseId)),
+          candidates,
         );
         runningBest.set(row.exerciseId, advanceBest(best, row));
-        return { ...row, isPr: prFields.length > 0 };
+        // prFields says *which* record a set broke, so the star can be
+        // labeled — but only worth labeling when more than one field could
+        // have been the record at all (see TodayExerciseCard).
+        return { ...row, isPr: prFields.length > 0, prFields, labelPrFields: candidates.length > 1 };
       });
     }),
 });

@@ -41,6 +41,10 @@ export const en = {
   "today.newSet": "New set",
   "today.logExercise": "Log exercise",
   "today.addSet": "+ Set",
+  "today.prReps": "Reps",
+  "today.prTime": "Time",
+  "today.prWeight": "Weight",
+  "today.prVolume": "Volume",
 
   // Set form.
   "setForm.discardTitle": "Discard this set?",

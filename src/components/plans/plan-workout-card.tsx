@@ -140,6 +140,8 @@ export function PlanWorkoutCard({
             timeSeconds: input.timeSeconds ?? null,
             weightKg: input.weightKg ?? null,
             isPr: false,
+            prFields: [],
+            labelPrFields: false,
           },
         ]);
       }

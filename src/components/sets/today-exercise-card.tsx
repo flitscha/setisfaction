@@ -3,8 +3,39 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatSetValue } from "@/lib/format-set";
 import { useT } from "@/lib/i18n/context";
+import type { TrackedField } from "@/lib/tracked-fields";
 
-type TodaySet = { id: string; reps: number | null; timeSeconds: number | null; weightKg: number | null; isPr: boolean };
+const PR_LABEL_KEYS = {
+  reps: "today.prReps",
+  time: "today.prTime",
+  weight: "today.prWeight",
+  volume: "today.prVolume",
+} as const;
+
+type TodaySet = {
+  id: string;
+  reps: number | null;
+  timeSeconds: number | null;
+  weightKg: number | null;
+  isPr: boolean;
+  prFields: TrackedField[];
+  labelPrFields: boolean;
+};
+
+// The star names which record it is (e.g. "★ Weight + Volume") rather than
+// using a color per field, which would need a legend to decode. Left as a
+// bare star when the exercise has only one field that can be a record —
+// nothing to disambiguate then.
+function PrBadge({ set }: { set: TodaySet }) {
+  const t = useT();
+  if (!set.isPr) return null;
+  return (
+    <span className="flex items-center gap-0.5 text-xs font-medium text-accent">
+      <Star size={12} className="fill-accent text-accent" />
+      {set.labelPrFields && set.prFields.map((field) => t(PR_LABEL_KEYS[field])).join(" + ")}
+    </span>
+  );
+}
 
 export function TodayExerciseCard({
   exerciseName,
@@ -43,7 +74,7 @@ export function TodayExerciseCard({
                 className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/10 min-h-11"
               >
                 {formatSetValue(set, t)}
-                {set.isPr && <Star size={12} className="fill-accent text-accent" />}
+                <PrBadge set={set} />
               </button>
             ) : (
               <div
@@ -51,7 +82,7 @@ export function TodayExerciseCard({
                 className="flex items-center gap-1 rounded-lg border border-card-border px-3 py-2 text-sm"
               >
                 {formatSetValue(set, t)}
-                {set.isPr && <Star size={12} className="fill-accent text-accent" />}
+                <PrBadge set={set} />
               </div>
             ),
           )}
