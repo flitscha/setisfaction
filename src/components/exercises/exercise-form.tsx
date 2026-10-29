@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { GroupMultiSelect } from "./group-multi-select";
 import { TrackedFieldsFieldset } from "./tracked-fields-fieldset";
+import { PrFieldsFieldset } from "./pr-fields-fieldset";
+import type { TrackedField } from "@/lib/stats";
 import { useT } from "@/lib/i18n/context";
 
 export type ExerciseFormValues = {
@@ -14,6 +16,8 @@ export type ExerciseFormValues = {
   tracksTime: boolean;
   tracksWeight: boolean;
   groupIds: string[];
+  // Undefined = never chosen, keeps following the default (see lib/pr.ts).
+  prFields?: TrackedField[];
 };
 
 const inputClass = "border border-card-border rounded-lg px-3 py-2 bg-transparent";
@@ -81,6 +85,8 @@ export function ExerciseForm({
       </label>
 
       <TrackedFieldsFieldset value={values} onChange={(fields) => setValues((v) => ({ ...v, ...fields }))} />
+
+      <PrFieldsFieldset tracked={values} value={values.prFields} onChange={(prFields) => setValues((v) => ({ ...v, prFields }))} />
 
       <GroupMultiSelect
         selectedGroupIds={values.groupIds}

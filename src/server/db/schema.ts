@@ -89,6 +89,23 @@ export const exercises = pgTable(
   ],
 );
 
+// Which fields earn a set the PR star, per user per exercise — per user
+// because a standard exercise's id is shared, like its group membership. No
+// row means the default from lib/pr.ts's defaultPrFields; a stored choice is
+// re-narrowed to the exercise's current tracked fields at read time
+// (effectivePrFields), so it never needs fixing up when those change.
+export const exercisePrSettings = pgTable(
+  "exercise_pr_settings",
+  {
+    userId: uuid("user_id").notNull(),
+    exerciseId: uuid("exercise_id")
+      .notNull()
+      .references(() => exercises.id, { onDelete: "cascade" }),
+    prFields: jsonb("pr_fields").$type<("reps" | "time" | "weight" | "volume")[]>().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.exerciseId] })],
+);
+
 // A user-defined grouping (e.g. "Push", "Legs") that exercises can optionally belong to,
 // many-to-many, purely for organizing/filtering and aggregate stats — not a real hierarchy.
 export const exerciseGroups = pgTable(

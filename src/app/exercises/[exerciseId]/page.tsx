@@ -6,6 +6,8 @@ import { trpc } from "@/lib/trpc/client";
 import { ExerciseForm } from "@/components/exercises/exercise-form";
 import { GroupMultiSelect } from "@/components/exercises/group-multi-select";
 import { TrackedFieldsFieldset, type TrackedFields } from "@/components/exercises/tracked-fields-fieldset";
+import { PrFieldsFieldset } from "@/components/exercises/pr-fields-fieldset";
+import type { TrackedField } from "@/lib/stats";
 import { Button } from "@/components/ui/button";
 import { BackLink } from "@/components/ui/back-link";
 import { useLocale, useT } from "@/lib/i18n/context";
@@ -59,6 +61,7 @@ function StandardExercisePage({
     tracksTime: boolean;
     tracksWeight: boolean;
     groupIds: string[];
+    prFields: TrackedField[] | null;
   };
 }) {
   const router = useRouter();
@@ -71,6 +74,7 @@ function StandardExercisePage({
     tracksTime: exercise.tracksTime,
     tracksWeight: exercise.tracksWeight,
   });
+  const [prFields, setPrFields] = useState<TrackedField[] | undefined>(exercise.prFields ?? undefined);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const updateStandard = trpc.exercise.updateStandard.useMutation({
@@ -86,7 +90,7 @@ function StandardExercisePage({
       return;
     }
     setValidationError(null);
-    updateStandard.mutate({ id: exercise.id, groupIds, ...trackedFields });
+    updateStandard.mutate({ id: exercise.id, groupIds, ...trackedFields, prFields });
   }
 
   return (
@@ -98,6 +102,8 @@ function StandardExercisePage({
       {exercise.description && <p className="text-sm text-muted px-1">{exercise.description}</p>}
 
       <TrackedFieldsFieldset value={trackedFields} onChange={setTrackedFields} />
+
+      <PrFieldsFieldset tracked={trackedFields} value={prFields} onChange={setPrFields} />
 
       <GroupMultiSelect selectedGroupIds={groupIds} onChange={setGroupIds} />
 
@@ -123,6 +129,7 @@ function CustomExercisePage({
     tracksTime: boolean;
     tracksWeight: boolean;
     groupIds: string[];
+    prFields: TrackedField[] | null;
     setsCount: number;
     forkedFromId: string | null;
   };
@@ -168,6 +175,7 @@ function CustomExercisePage({
           tracksTime: exercise.tracksTime,
           tracksWeight: exercise.tracksWeight,
           groupIds: exercise.groupIds,
+          prFields: exercise.prFields ?? undefined,
         }}
         onSubmit={(values) =>
           updateExercise.mutate({ id: exerciseId, ...values, description: values.description || undefined })

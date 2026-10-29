@@ -2,7 +2,8 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, eq, gte, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { getPrFields, type PreviousBest } from "@/lib/pr";
+import { advanceBest, EMPTY_BEST, effectivePrFields, getPrFields, type PreviousBest } from "@/lib/pr";
+import { getStoredPrFields } from "@/server/db/pr-settings";
 import { exercises, sets } from "@/server/db/schema";
 import { readProcedure, router, writeProcedure } from "../trpc";
 
@@ -47,12 +48,21 @@ async function getPreviousBest(exerciseId: string, userId: string, excludeSetId?
     .select({
       maxReps: sql<number | null>`max(${sets.reps})`,
       maxTimeSeconds: sql<number | null>`max(${sets.timeSeconds})`,
-      maxWeightKg: sql<number | null>`max(${sets.weightKg})`,
+      maxWeightKg: sql<number | null>`max(${sets.weightKg})`.mapWith(Number),
+      maxVolume: sql<number | null>`max(${sets.reps} * ${sets.weightKg})`.mapWith(Number),
     })
     .from(sets)
     .where(and(...conditions));
 
   return result;
+}
+
+async function getExercisePrFields(
+  exercise: { id: string; tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean },
+  userId: string,
+) {
+  const stored = await getStoredPrFields(userId, [exercise.id]);
+  return effectivePrFields(exercise, stored.get(exercise.id));
 }
 
 // Exported so community.ts can build the same per-exercise history for a
@@ -68,9 +78,12 @@ export function getSetsByExercise(userId: string, exerciseId: string) {
 
 export const setRouter = router({
   create: writeProcedure.input(createSetInput).mutation(async ({ ctx, input }) => {
-    await assertOwnsExercise(input.exerciseId, ctx.userId);
+    const exercise = await assertOwnsExercise(input.exerciseId, ctx.userId);
 
-    const previousBest = await getPreviousBest(input.exerciseId, ctx.userId);
+    const [previousBest, prFields] = await Promise.all([
+      getPreviousBest(input.exerciseId, ctx.userId),
+      getExercisePrFields(exercise, ctx.userId),
+    ]);
 
     const [set] = await db
       .insert(sets)
@@ -84,7 +97,7 @@ export const setRouter = router({
       })
       .returning();
 
-    return { set, prFields: getPrFields(input, previousBest) };
+    return { set, prFields: getPrFields(input, previousBest, prFields) };
   }),
 
   update: writeProcedure.input(updateSetInput).mutation(async ({ ctx, input }) => {
@@ -99,7 +112,11 @@ export const setRouter = router({
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
-    const previousBest = await getPreviousBest(existing.exerciseId, ctx.userId, id);
+    const exercise = await assertOwnsExercise(existing.exerciseId, ctx.userId);
+    const [previousBest, prFields] = await Promise.all([
+      getPreviousBest(existing.exerciseId, ctx.userId, id),
+      getExercisePrFields(exercise, ctx.userId),
+    ]);
 
     const [set] = await db
       .update(sets)
@@ -111,7 +128,7 @@ export const setRouter = router({
       .where(eq(sets.id, id))
       .returning();
 
-    return { set, prFields: getPrFields(values, previousBest) };
+    return { set, prFields: getPrFields(values, previousBest, prFields) };
   }),
 
   delete: writeProcedure.input(z.object({ id: z.string().uuid() })).mutation(async ({ ctx, input }) => {
@@ -139,6 +156,8 @@ export const setRouter = router({
   // row against a running best that starts at the all-time max from before
   // this day and advances through the day's own sets in order, so two sets
   // logged today can both correctly be PRs if each beats the one before it.
+  // Which fields count is the viewed user's own per-exercise choice (see
+  // exercise_pr_settings), not the caller's.
   listByDay: readProcedure
     .input(z.object({ dayStart: z.date(), dayEnd: z.date() }))
     .query(async ({ ctx, input }) => {
@@ -170,35 +189,33 @@ export const setRouter = router({
       if (rows.length === 0) return [];
 
       const exerciseIds = [...new Set(rows.map((r) => r.exerciseId))];
-      const baselines = await db
-        .select({
-          exerciseId: sets.exerciseId,
-          maxReps: sql<number | null>`max(${sets.reps})`,
-          maxTimeSeconds: sql<number | null>`max(${sets.timeSeconds})`,
-          maxWeightKg: sql<number | null>`max(${sets.weightKg})`,
-        })
-        .from(sets)
-        .where(
-          and(eq(sets.userId, ctx.viewUserId), inArray(sets.exerciseId, exerciseIds), lt(sets.performedAt, input.dayStart)),
-        )
-        .groupBy(sets.exerciseId);
+      const [baselines, storedPrFields] = await Promise.all([
+        db
+          .select({
+            exerciseId: sets.exerciseId,
+            maxReps: sql<number | null>`max(${sets.reps})`,
+            maxTimeSeconds: sql<number | null>`max(${sets.timeSeconds})`,
+            maxWeightKg: sql<number | null>`max(${sets.weightKg})`.mapWith(Number),
+            maxVolume: sql<number | null>`max(${sets.reps} * ${sets.weightKg})`.mapWith(Number),
+          })
+          .from(sets)
+          .where(
+            and(eq(sets.userId, ctx.viewUserId), inArray(sets.exerciseId, exerciseIds), lt(sets.performedAt, input.dayStart)),
+          )
+          .groupBy(sets.exerciseId),
+        getStoredPrFields(ctx.viewUserId, exerciseIds),
+      ]);
 
-      const runningBest = new Map<string, PreviousBest>(
-        baselines.map((b) => [b.exerciseId, { maxReps: b.maxReps, maxTimeSeconds: b.maxTimeSeconds, maxWeightKg: b.maxWeightKg }]),
-      );
+      const runningBest = new Map<string, PreviousBest>(baselines.map(({ exerciseId, ...best }) => [exerciseId, best]));
 
       return rows.map((row) => {
-        const best = runningBest.get(row.exerciseId) ?? { maxReps: null, maxTimeSeconds: null, maxWeightKg: null };
+        const best = runningBest.get(row.exerciseId) ?? EMPTY_BEST;
         const prFields = getPrFields(
           { reps: row.reps ?? undefined, timeSeconds: row.timeSeconds ?? undefined, weightKg: row.weightKg ?? undefined },
           best,
+          effectivePrFields(row, storedPrFields.get(row.exerciseId)),
         );
-        runningBest.set(row.exerciseId, {
-          maxReps: row.reps !== null ? Math.max(best.maxReps ?? row.reps, row.reps) : best.maxReps,
-          maxTimeSeconds:
-            row.timeSeconds !== null ? Math.max(best.maxTimeSeconds ?? row.timeSeconds, row.timeSeconds) : best.maxTimeSeconds,
-          maxWeightKg: row.weightKg !== null ? Math.max(best.maxWeightKg ?? row.weightKg, row.weightKg) : best.maxWeightKg,
-        });
+        runningBest.set(row.exerciseId, advanceBest(best, row));
         return { ...row, isPr: prFields.length > 0 };
       });
     }),

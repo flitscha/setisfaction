@@ -99,6 +99,13 @@
       "when": 1788813286675,
       "tag": "0013_remove_lateral_raises",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793259429092,
+      "tag": "0014_exercise_pr_settings",
+      "breakpoints": true
     }
   ]
 }

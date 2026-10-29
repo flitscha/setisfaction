@@ -4,7 +4,7 @@ import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { db } from "@/server/db";
 import { resolveUsernames } from "@/server/db/usernames";
-import { exerciseGroups, exercises, profiles, sets } from "@/server/db/schema";
+import { exerciseGroups, exercisePrSettings, exercises, profiles, sets } from "@/server/db/schema";
 import { adminProcedure, protectedProcedure, router } from "../trpc";
 
 // Supabase Auth's users live in the auth schema, not one Drizzle manages
@@ -77,6 +77,8 @@ export const adminRouter = router({
       // can be logged against a standard (shared) exercise that isn't this
       // user's own and so never gets deleted, which wouldn't cascade to it.
       await tx.delete(sets).where(eq(sets.userId, input.userId));
+      // Same reason: a PR choice on a standard exercise never cascades.
+      await tx.delete(exercisePrSettings).where(eq(exercisePrSettings.userId, input.userId));
       // Cascades exercise_group_members via its FK.
       await tx.delete(exercises).where(eq(exercises.userId, input.userId));
       await tx.delete(exerciseGroups).where(eq(exerciseGroups.userId, input.userId));

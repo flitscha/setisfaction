@@ -2,8 +2,23 @@ import { TRPCError } from "@trpc/server";
 import { and, count, eq, inArray, isNotNull, isNull, notInArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/server/db";
-import { exerciseGroupMembers, exerciseGroups, exercises, profiles, sets, workoutExercises, workouts } from "@/server/db/schema";
+import {
+  exerciseGroupMembers,
+  exerciseGroups,
+  exercisePrSettings,
+  exercises,
+  profiles,
+  sets,
+  workoutExercises,
+  workouts,
+} from "@/server/db/schema";
+import { getStoredPrFields } from "@/server/db/pr-settings";
+import { defaultPrFields } from "@/lib/pr";
+import { availableTrackedFields } from "@/lib/stats";
 import { readProcedure, router, writeProcedure } from "../trpc";
+
+// Omitted = leave this user's PR choice for the exercise as it is.
+const prFieldsInput = z.array(z.enum(["reps", "time", "weight", "volume"])).min(1).optional();
 
 const exerciseFields = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),
@@ -17,6 +32,7 @@ const exerciseFields = z.object({
   tracksTime: z.boolean(),
   tracksWeight: z.boolean(),
   groupIds: z.array(z.string().uuid()).default([]),
+  prFields: prFieldsInput,
 });
 
 function hasTrackedField(data: { tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean }) {
@@ -48,6 +64,36 @@ async function assertOwnsGroups(groupIds: string[], userId: string) {
   if (owned.length !== groupIds.length) {
     throw new TRPCError({ code: "NOT_FOUND", message: "One or more groups don't exist." });
   }
+}
+
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+// Stores this user's PR-field choice for an exercise — or removes it when it
+// matches the default, so "never chosen" stays distinguishable and keeps
+// following defaultPrFields. Fields the exercise doesn't track are dropped
+// here rather than rejected (effectivePrFields would ignore them anyway).
+async function savePrFields(
+  tx: Tx,
+  userId: string,
+  exercise: { id: string; tracksReps: boolean; tracksTime: boolean; tracksWeight: boolean },
+  prFields: z.infer<typeof prFieldsInput>,
+) {
+  if (!prFields) return;
+  const available = availableTrackedFields(exercise);
+  const chosen = [...new Set(prFields)].filter((field) => available.includes(field));
+  const defaults = defaultPrFields(exercise);
+  const isDefault =
+    chosen.length === 0 || (chosen.length === defaults.length && chosen.every((field) => defaults.includes(field)));
+  const where = and(eq(exercisePrSettings.userId, userId), eq(exercisePrSettings.exerciseId, exercise.id));
+
+  if (isDefault) {
+    await tx.delete(exercisePrSettings).where(where);
+    return;
+  }
+  await tx
+    .insert(exercisePrSettings)
+    .values({ userId, exerciseId: exercise.id, prFields: chosen })
+    .onConflictDoUpdate({ target: [exercisePrSettings.userId, exercisePrSettings.exerciseId], set: { prFields: chosen } });
 }
 
 // Scoped to the viewing user's own groups — a shared exercise's id can be
@@ -175,23 +221,31 @@ export const exerciseRouter = router({
 
     // setsCount and groupIds only need input.id, known upfront — run
     // alongside the exercise lookup above instead of waiting on it.
-    const [exercise, [setsCountRow], groupIdsByExercise] = await Promise.all([
+    const [exercise, [setsCountRow], groupIdsByExercise, storedPrFields] = await Promise.all([
       exerciseQuery,
       // Scoped to this user's own sets — a standard exercise can be shared
       // with sets logged by other users too, which aren't this viewer's to count.
       db.select({ value: count() }).from(sets).where(and(eq(sets.exerciseId, input.id), eq(sets.userId, ctx.viewUserId))),
       getGroupIdsByExercise([input.id], ctx.viewUserId),
+      getStoredPrFields(ctx.viewUserId, [input.id]),
     ]);
 
     if (!exercise) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
 
-    return { ...exercise, setsCount: setsCountRow.value, groupIds: groupIdsByExercise.get(exercise.id) ?? [] };
+    return {
+      ...exercise,
+      setsCount: setsCountRow.value,
+      groupIds: groupIdsByExercise.get(exercise.id) ?? [],
+      // The raw stored choice (null = never chosen); the page resolves it
+      // against whatever tracked fields its form currently has.
+      prFields: storedPrFields.get(exercise.id) ?? null,
+    };
   }),
 
   create: writeProcedure.input(createExerciseInput).mutation(async ({ ctx, input }) => {
-    const { groupIds, ...values } = input;
+    const { groupIds, prFields, ...values } = input;
     await assertOwnsGroups(groupIds, ctx.userId);
 
     try {
@@ -204,6 +258,7 @@ export const exerciseRouter = router({
         if (groupIds.length > 0) {
           await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: exercise.id, groupId })));
         }
+        await savePrFields(tx, ctx.userId, exercise, prFields);
 
         return { ...exercise, groupIds };
       });
@@ -220,7 +275,7 @@ export const exerciseRouter = router({
   // stays comparable. Only a user's own exercises can be renamed/redescribed;
   // see updateStandard for what a standard exercise's own page can change.
   update: writeProcedure.input(updateExerciseInput).mutation(async ({ ctx, input }) => {
-    const { id, groupIds, ...values } = input;
+    const { id, groupIds, prFields, ...values } = input;
     await assertOwnsGroups(groupIds, ctx.userId);
 
     try {
@@ -239,6 +294,7 @@ export const exerciseRouter = router({
         if (groupIds.length > 0) {
           await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: id, groupId })));
         }
+        await savePrFields(tx, ctx.userId, exercise, prFields);
 
         return { ...exercise, groupIds };
       });
@@ -265,11 +321,12 @@ export const exerciseRouter = router({
           tracksReps: z.boolean(),
           tracksTime: z.boolean(),
           tracksWeight: z.boolean(),
+          prFields: prFieldsInput,
         })
         .refine(hasTrackedField, trackedFieldIssue),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, groupIds, tracksReps, tracksTime, tracksWeight } = input;
+      const { id, groupIds, tracksReps, tracksTime, tracksWeight, prFields } = input;
       await assertOwnsGroups(groupIds, ctx.userId);
 
       const [standard] = await db
@@ -301,6 +358,7 @@ export const exerciseRouter = router({
           if (groupIds.length > 0) {
             await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: id, groupId })));
           }
+          await savePrFields(tx, ctx.userId, standard, prFields);
         });
 
         return { forked: false as const, exerciseId: id };
@@ -348,6 +406,19 @@ export const exerciseRouter = router({
 
           if (groupIds.length > 0) {
             await tx.insert(exerciseGroupMembers).values(groupIds.map((groupId) => ({ exerciseId: fork.id, groupId })));
+          }
+
+          // The PR choice belongs to this user's view of the exercise, so
+          // like their sets it moves to the fork. The standard's own row (if
+          // any) is left alone, like its grouping, for restoreStandard.
+          if (prFields) {
+            await savePrFields(tx, ctx.userId, fork, prFields);
+          } else {
+            const [existing] = await tx
+              .select({ prFields: exercisePrSettings.prFields })
+              .from(exercisePrSettings)
+              .where(and(eq(exercisePrSettings.userId, ctx.userId), eq(exercisePrSettings.exerciseId, standard.id)));
+            if (existing) await savePrFields(tx, ctx.userId, fork, existing.prFields);
           }
 
           return fork;
