@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import type { TrackedField } from "@/lib/stats";
+import type { TrackedField } from "@/lib/tracked-fields";
 import { db } from "@/server/db";
 import { exercisePrSettings } from "@/server/db/schema";
 

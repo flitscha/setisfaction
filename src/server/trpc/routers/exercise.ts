@@ -14,7 +14,7 @@ import {
 } from "@/server/db/schema";
 import { getStoredPrFields } from "@/server/db/pr-settings";
 import { defaultPrFields } from "@/lib/pr";
-import { availableTrackedFields } from "@/lib/stats";
+import { availableTrackedFields } from "@/lib/tracked-fields";
 import { readProcedure, router, writeProcedure } from "../trpc";
 
 // Omitted = leave this user's PR choice for the exercise as it is.
