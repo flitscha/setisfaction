@@ -1,4 +1,4 @@
-import { availableTrackedFields, type TrackedField } from "./stats";
+import { availableTrackedFields, type TrackedField } from "./tracked-fields";
 
 export type PreviousBest = {
   maxReps: number | null;
